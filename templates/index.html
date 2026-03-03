@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ticket Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; color: #222; }
+    h1, h2 { margin-bottom: 0.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    form { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: #f9f9f9; }
+    label { display: block; margin: 0.6rem 0 0.25rem; font-weight: bold; }
+    input, select, textarea, button { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+    textarea { min-height: 80px; }
+    .inline { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+    .inline input { width: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 0.6rem; text-align: left; }
+    th { background: #f0f0f0; }
+    .sort-links a { margin-right: 0.6rem; }
+    .muted { color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>Ticket Tracker</h1>
+
+  <div class="grid">
+    <form action="{{ url_for('add_ticket') }}" method="post">
+      <h2>Add Ticket Entry</h2>
+      <label for="link">Ticket Link</label>
+      <input id="link" name="link" type="url" required />
+
+      <label for="category_id">Category</label>
+      <select id="category_id" name="category_id" required>
+        <option value="" selected disabled>Select category</option>
+        {% for category in categories %}
+          <option value="{{ category['id'] }}">{{ category['name'] }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="description">Description</label>
+      <textarea id="description" name="description" required></textarea>
+
+      <label for="date">Date</label>
+      <input id="date" name="date" type="date" required />
+
+      <label class="inline" for="shared_with_manager">
+        <input id="shared_with_manager" name="shared_with_manager" type="checkbox" />
+        Shared with manager
+      </label>
+
+      <label class="inline" for="favorite">
+        <input id="favorite" name="favorite" type="checkbox" />
+        Favorite
+      </label>
+
+      <button type="submit">Save Ticket</button>
+    </form>
+
+    <form action="{{ url_for('add_category') }}" method="post">
+      <h2>Create Category</h2>
+      <label for="name">Category Name</label>
+      <input id="name" name="name" type="text" required />
+      <button type="submit">Add Category</button>
+      <p class="muted">Categories appear in the ticket form dropdown.</p>
+    </form>
+  </div>
+
+  <h2>Saved Tickets</h2>
+  <div class="sort-links">
+    Sort by:
+    <a href="{{ url_for('index', sort_by='category', order='asc') }}">Category (A→Z)</a>
+    <a href="{{ url_for('index', sort_by='category', order='desc') }}">Category (Z→A)</a>
+    <a href="{{ url_for('index', sort_by='date', order='asc') }}">Date (Oldest)</a>
+    <a href="{{ url_for('index', sort_by='date', order='desc') }}">Date (Newest)</a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Ticket Link</th>
+        <th>Category</th>
+        <th>Description</th>
+        <th>Date</th>
+        <th>Shared with Manager</th>
+        <th>Favorite</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ticket in tickets %}
+      <tr>
+        <td><a href="{{ ticket['link'] }}" target="_blank" rel="noopener">Open Ticket</a></td>
+        <td>{{ ticket['category'] }}</td>
+        <td>{{ ticket['description'] }}</td>
+        <td>{{ ticket['date'] }}</td>
+        <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
+        <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6">No tickets added yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
