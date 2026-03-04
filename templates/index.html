@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ticket Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem; color: #222; }
     h1, h2 { margin-bottom: 0.5rem; }
@@ -237,9 +238,44 @@
     const analysisFrame = document.getElementById('analysis-frame');
     const closeAnalysisModalButton = document.getElementById('close-analysis-modal');
 
+    function renderMixedAnalysis(rawAnalysis) {
+      const raw = (rawAnalysis || '').trim();
+      if (!raw) {
+        return '';
+      }
+
+      const lowerRaw = raw.toLowerCase();
+      const htmlStart = lowerRaw.indexOf('<html');
+      const htmlEnd = lowerRaw.lastIndexOf('</html>');
+
+      if (htmlStart !== -1 && htmlEnd !== -1 && htmlEnd > htmlStart) {
+        const htmlDocument = raw.slice(htmlStart, htmlEnd + 7);
+        const trailingMarkdown = raw.slice(htmlEnd + 7).trim();
+
+        if (!trailingMarkdown) {
+          return htmlDocument;
+        }
+
+        const renderedMarkdown = marked.parse(trailingMarkdown);
+        const markdownSection = `\n<section style="margin: 2rem; padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; font-family: Arial, sans-serif;">\n<h2 style="margin-top: 0;">Additional AI Notes</h2>\n${renderedMarkdown}\n</section>\n`;
+
+        if (htmlDocument.toLowerCase().includes('</body>')) {
+          return htmlDocument.replace(/<\/body>/i, `${markdownSection}</body>`);
+        }
+
+        return `${htmlDocument}${markdownSection}`;
+      }
+
+      if (raw.includes('<') && raw.includes('>')) {
+        return raw;
+      }
+
+      return `<!doctype html><html><head><meta charset="utf-8" /><title>AI Analysis</title></head><body style="font-family: Arial, sans-serif; padding: 1.25rem;">${marked.parse(raw)}</body></html>`;
+    }
+
     document.querySelectorAll('[data-analysis-html]').forEach((button) => {
       button.addEventListener('click', () => {
-        analysisFrame.srcdoc = button.dataset.analysisHtml;
+        analysisFrame.srcdoc = renderMixedAnalysis(button.dataset.analysisHtml);
         analysisModal.classList.remove('hidden');
       });
     });
