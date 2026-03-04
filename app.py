@@ -79,6 +79,7 @@ def index() -> str:
     sort_by = request.args.get("sort_by", "date")
     order = request.args.get("order", "desc")
     description_search = request.args.get("q", "").strip()
+    category_filter = request.args.get("category_id", "").strip()
     shared_only = request.args.get("shared_only", "0") == "1"
     favorite_only = request.args.get("favorite_only", "0") == "1"
     edit_id = request.args.get("edit_id", "").strip()
@@ -93,6 +94,10 @@ def index() -> str:
     if description_search:
         where_clauses.append("LOWER(t.description) LIKE ?")
         params.append(f"%{description_search.lower()}%")
+
+    if category_filter.isdigit():
+        where_clauses.append("t.category_id = ?")
+        params.append(int(category_filter))
 
     if shared_only:
         where_clauses.append("t.shared_with_manager = 1")
@@ -135,6 +140,7 @@ def index() -> str:
         sort_by=sort_by,
         order=order,
         description_search=description_search,
+        category_filter=category_filter,
         shared_only=shared_only,
         favorite_only=favorite_only,
         ticket_to_edit=ticket_to_edit,
