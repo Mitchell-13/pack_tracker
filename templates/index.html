@@ -128,6 +128,15 @@
 
       <input name="q" type="text" placeholder="Search description..." value="{{ description_search }}" />
 
+      <select id="category_id_filter" name="category_id">
+        <option value="">All categories</option>
+        {% for category in categories %}
+          <option value="{{ category['id'] }}" {% if category_filter == category['id']|string %}selected{% endif %}>
+            {{ category['name'] }}
+          </option>
+        {% endfor %}
+      </select>
+
       <label class="inline" for="shared_only">
         <input id="shared_only" name="shared_only" type="checkbox" value="1" {% if shared_only %}checked{% endif %} />
         Shared only
@@ -144,10 +153,10 @@
 
   <div class="sort-links">
     Sort by:
-    <a href="{{ url_for('index', sort_by='category', order='asc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (A→Z)</a>
-    <a href="{{ url_for('index', sort_by='category', order='desc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (Z→A)</a>
-    <a href="{{ url_for('index', sort_by='date', order='asc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Oldest)</a>
-    <a href="{{ url_for('index', sort_by='date', order='desc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Newest)</a>
+    <a href="{{ url_for('index', sort_by='category', order='asc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (A→Z)</a>
+    <a href="{{ url_for('index', sort_by='category', order='desc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (Z→A)</a>
+    <a href="{{ url_for('index', sort_by='date', order='asc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Oldest)</a>
+    <a href="{{ url_for('index', sort_by='date', order='desc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Newest)</a>
   </div>
 
   <table>
@@ -172,7 +181,7 @@
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
         <td class="actions">
-          <a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Edit</a>
+          <a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Edit</a>
           <form action="{{ url_for('delete_ticket', ticket_id=ticket['id']) }}" method="post">
             <button class="danger" type="submit" onclick="return confirm('Delete this ticket?');">Delete</button>
           </form>
