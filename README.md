@@ -7,6 +7,9 @@ Simple Flask app for tracking tickets with:
 - date
 - checkbox for "shared with manager"
 - checkbox for favorites
+- description search
+- filters for shared/favorite tickets
+- in-place editing of existing tickets
 
 ## Run
 

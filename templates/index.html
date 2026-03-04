@@ -19,6 +19,10 @@
     th { background: #f0f0f0; }
     .sort-links a { margin-right: 0.6rem; }
     .muted { color: #666; font-size: 0.9rem; }
+    .controls { margin: 1rem 0; }
+    .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.5rem; align-items: center; }
+    .controls label { margin: 0; font-weight: normal; }
+    .actions a { text-decoration: none; }
   </style>
 </head>
 <body>
@@ -66,13 +70,71 @@
     </form>
   </div>
 
+  {% if ticket_to_edit %}
+  <form action="{{ url_for('edit_ticket', ticket_id=ticket_to_edit['id']) }}" method="post">
+    <h2>Edit Ticket #{{ ticket_to_edit['id'] }}</h2>
+    <label for="edit_link">Ticket Link</label>
+    <input id="edit_link" name="link" type="url" value="{{ ticket_to_edit['link'] }}" required />
+
+    <label for="edit_category_id">Category</label>
+    <select id="edit_category_id" name="category_id" required>
+      {% for category in categories %}
+        <option value="{{ category['id'] }}" {% if category['id'] == ticket_to_edit['category_id'] %}selected{% endif %}>
+          {{ category['name'] }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <label for="edit_description">Description</label>
+    <textarea id="edit_description" name="description" required>{{ ticket_to_edit['description'] }}</textarea>
+
+    <label for="edit_date">Date</label>
+    <input id="edit_date" name="date" type="date" value="{{ ticket_to_edit['date'] }}" required />
+
+    <label class="inline" for="edit_shared_with_manager">
+      <input id="edit_shared_with_manager" name="shared_with_manager" type="checkbox" {% if ticket_to_edit['shared_with_manager'] %}checked{% endif %} />
+      Shared with manager
+    </label>
+
+    <label class="inline" for="edit_favorite">
+      <input id="edit_favorite" name="favorite" type="checkbox" {% if ticket_to_edit['favorite'] %}checked{% endif %} />
+      Favorite
+    </label>
+
+    <button type="submit">Update Ticket</button>
+    <p class="muted"><a href="{{ url_for('index') }}">Cancel editing</a></p>
+  </form>
+  {% endif %}
+
   <h2>Saved Tickets</h2>
+
+  <div class="controls">
+    <form method="get" action="{{ url_for('index') }}">
+      <input type="hidden" name="sort_by" value="{{ sort_by }}" />
+      <input type="hidden" name="order" value="{{ order }}" />
+
+      <input name="q" type="text" placeholder="Search description..." value="{{ description_search }}" />
+
+      <label class="inline" for="shared_only">
+        <input id="shared_only" name="shared_only" type="checkbox" value="1" {% if shared_only %}checked{% endif %} />
+        Shared only
+      </label>
+
+      <label class="inline" for="favorite_only">
+        <input id="favorite_only" name="favorite_only" type="checkbox" value="1" {% if favorite_only %}checked{% endif %} />
+        Favorites only
+      </label>
+
+      <button type="submit">Apply</button>
+    </form>
+  </div>
+
   <div class="sort-links">
     Sort by:
-    <a href="{{ url_for('index', sort_by='category', order='asc') }}">Category (A→Z)</a>
-    <a href="{{ url_for('index', sort_by='category', order='desc') }}">Category (Z→A)</a>
-    <a href="{{ url_for('index', sort_by='date', order='asc') }}">Date (Oldest)</a>
-    <a href="{{ url_for('index', sort_by='date', order='desc') }}">Date (Newest)</a>
+    <a href="{{ url_for('index', sort_by='category', order='asc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (A→Z)</a>
+    <a href="{{ url_for('index', sort_by='category', order='desc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (Z→A)</a>
+    <a href="{{ url_for('index', sort_by='date', order='asc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Oldest)</a>
+    <a href="{{ url_for('index', sort_by='date', order='desc', q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Newest)</a>
   </div>
 
   <table>
@@ -84,6 +146,7 @@
         <th>Date</th>
         <th>Shared with Manager</th>
         <th>Favorite</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -95,10 +158,11 @@
         <td>{{ ticket['date'] }}</td>
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
+        <td class="actions"><a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Edit</a></td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="6">No tickets added yet.</td>
+        <td colspan="7">No tickets matched the current filters.</td>
       </tr>
       {% endfor %}
     </tbody>
