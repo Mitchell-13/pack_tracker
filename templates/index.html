@@ -31,6 +31,13 @@
     .actions a { text-decoration: none; }
     .actions form { border: 0; background: transparent; padding: 0; }
     .actions button { width: auto; padding: 0.25rem 0.5rem; }
+    .analysis-link { color: #1565c0; text-decoration: underline; cursor: pointer; border: 0; background: transparent; padding: 0; font-size: inherit; }
+    .modal.hidden { display: none; }
+    .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 999; }
+    .modal-content { background: #fff; border-radius: 8px; width: min(100%, 1000px); height: min(100%, 750px); display: flex; flex-direction: column; overflow: hidden; }
+    .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header button { width: auto; }
+    .modal iframe { border: 0; width: 100%; flex: 1; }
     @media (max-width: 840px) {
       .layout { grid-template-columns: 1fr; }
       .controls form { grid-template-columns: 1fr; }
@@ -56,6 +63,9 @@
 
       <label for="description">Description</label>
       <textarea id="description" name="description" required></textarea>
+
+      <label for="ai_analysis">AI Analysis (HTML)</label>
+      <textarea id="ai_analysis" name="ai_analysis" placeholder="Paste raw HTML for AI analysis"></textarea>
 
       <label for="date">Date</label>
       <input id="date" name="date" type="date" value="{{ today_date }}" required />
@@ -98,6 +108,9 @@
 
     <label for="edit_description">Description</label>
     <textarea id="edit_description" name="description" required>{{ ticket_to_edit['description'] }}</textarea>
+
+    <label for="edit_ai_analysis">AI Analysis (HTML)</label>
+    <textarea id="edit_ai_analysis" name="ai_analysis" placeholder="Paste raw HTML for AI analysis">{{ ticket_to_edit['ai_analysis'] }}</textarea>
 
     <label for="edit_date">Date</label>
     <input id="edit_date" name="date" type="date" value="{{ ticket_to_edit['date'] }}" required />
@@ -166,6 +179,7 @@
         <th>Category</th>
         <th>Description</th>
         <th>Date</th>
+        <th>AI Analysis</th>
         <th>Shared with Manager</th>
         <th>Favorite</th>
         <th>Actions</th>
@@ -178,6 +192,19 @@
         <td>{{ ticket['category'] }}</td>
         <td>{{ ticket['description'] }}</td>
         <td>{{ ticket['date'] }}</td>
+        <td>
+          {% if ticket['ai_analysis'] %}
+            <button
+              type="button"
+              class="analysis-link"
+              data-analysis-html="{{ ticket['ai_analysis']|e }}"
+            >
+              View analysis
+            </button>
+          {% else %}
+            —
+          {% endif %}
+        </td>
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
         <td class="actions">
@@ -189,10 +216,51 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="7">No tickets matched the current filters.</td>
+        <td colspan="8">No tickets matched the current filters.</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+
+  <div id="analysis-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="analysis-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="analysis-modal-title">AI Analysis</h3>
+        <button id="close-analysis-modal" type="button">Close</button>
+      </div>
+      <iframe id="analysis-frame" title="AI analysis HTML preview"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const analysisModal = document.getElementById('analysis-modal');
+    const analysisFrame = document.getElementById('analysis-frame');
+    const closeAnalysisModalButton = document.getElementById('close-analysis-modal');
+
+    document.querySelectorAll('[data-analysis-html]').forEach((button) => {
+      button.addEventListener('click', () => {
+        analysisFrame.srcdoc = button.dataset.analysisHtml;
+        analysisModal.classList.remove('hidden');
+      });
+    });
+
+    function closeAnalysisModal() {
+      analysisModal.classList.add('hidden');
+      analysisFrame.srcdoc = '';
+    }
+
+    closeAnalysisModalButton.addEventListener('click', closeAnalysisModal);
+    analysisModal.addEventListener('click', (event) => {
+      if (event.target === analysisModal) {
+        closeAnalysisModal();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !analysisModal.classList.contains('hidden')) {
+        closeAnalysisModal();
+      }
+    });
+  </script>
 </body>
 </html>
