@@ -7,13 +7,18 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem; color: #222; }
     h1, h2 { margin-bottom: 0.5rem; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .layout { display: grid; grid-template-columns: minmax(340px, 2fr) minmax(240px, 1fr); gap: 1rem; margin-bottom: 1rem; align-items: start; }
     form { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: #f9f9f9; }
+    .compact-form { padding: 0.75rem; }
+    .compact-form h2 { font-size: 1rem; margin-top: 0; }
     label { display: block; margin: 0.6rem 0 0.25rem; font-weight: bold; }
     input, select, textarea, button { width: 100%; padding: 0.5rem; box-sizing: border-box; }
     textarea { min-height: 80px; }
     .inline { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
     .inline input { width: auto; }
+    .btn-row { display: flex; gap: 0.5rem; }
+    .btn-row button { width: auto; }
+    .danger { border: 1px solid #c62828; color: #c62828; background: #fff; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #ddd; padding: 0.6rem; text-align: left; }
     th { background: #f0f0f0; }
@@ -22,13 +27,20 @@
     .controls { margin: 1rem 0; }
     .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.5rem; align-items: center; }
     .controls label { margin: 0; font-weight: normal; }
+    .actions { display: flex; gap: 0.5rem; align-items: center; }
     .actions a { text-decoration: none; }
+    .actions form { border: 0; background: transparent; padding: 0; }
+    .actions button { width: auto; padding: 0.25rem 0.5rem; }
+    @media (max-width: 840px) {
+      .layout { grid-template-columns: 1fr; }
+      .controls form { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <h1>Ticket Tracker</h1>
 
-  <div class="grid">
+  <div class="layout">
     <form action="{{ url_for('add_ticket') }}" method="post">
       <h2>Add Ticket Entry</h2>
       <label for="link">Ticket Link</label>
@@ -46,7 +58,7 @@
       <textarea id="description" name="description" required></textarea>
 
       <label for="date">Date</label>
-      <input id="date" name="date" type="date" required />
+      <input id="date" name="date" type="date" value="{{ today_date }}" required />
 
       <label class="inline" for="shared_with_manager">
         <input id="shared_with_manager" name="shared_with_manager" type="checkbox" />
@@ -61,12 +73,11 @@
       <button type="submit">Save Ticket</button>
     </form>
 
-    <form action="{{ url_for('add_category') }}" method="post">
-      <h2>Create Category</h2>
+    <form action="{{ url_for('add_category') }}" method="post" class="compact-form">
+      <h2>Add Category</h2>
       <label for="name">Category Name</label>
-      <input id="name" name="name" type="text" required />
-      <button type="submit">Add Category</button>
-      <p class="muted">Categories appear in the ticket form dropdown.</p>
+      <input id="name" name="name" type="text" placeholder="e.g. Billing" required />
+      <button type="submit">Add</button>
     </form>
   </div>
 
@@ -101,8 +112,10 @@
       Favorite
     </label>
 
-    <button type="submit">Update Ticket</button>
-    <p class="muted"><a href="{{ url_for('index') }}">Cancel editing</a></p>
+    <div class="btn-row">
+      <button type="submit">Update Ticket</button>
+      <a href="{{ url_for('index') }}">Cancel editing</a>
+    </div>
   </form>
   {% endif %}
 
@@ -158,7 +171,12 @@
         <td>{{ ticket['date'] }}</td>
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
-        <td class="actions"><a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Edit</a></td>
+        <td class="actions">
+          <a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Edit</a>
+          <form action="{{ url_for('delete_ticket', ticket_id=ticket['id']) }}" method="post">
+            <button class="danger" type="submit" onclick="return confirm('Delete this ticket?');">Delete</button>
+          </form>
+        </td>
       </tr>
       {% else %}
       <tr>
