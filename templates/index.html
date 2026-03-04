@@ -48,7 +48,24 @@
     .controls { margin: 1rem 0; }
     .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto auto; gap: 0.5rem; align-items: center; }
     .controls label { margin: 0; font-weight: normal; }
-    .actions { display: flex; gap: 0.5rem; align-items: center; }
+    .ticket-link-cell,
+    .analysis-cell,
+    .actions-cell {
+      text-align: center;
+      vertical-align: middle;
+    }
+    .ticket-link-cell .btn,
+    .analysis-cell .btn {
+      min-width: 88px;
+      text-align: center;
+    }
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
     .actions a { text-decoration: none; }
     .actions form { border: 0; background: transparent; padding: 0; }
     .actions button { width: auto; }
@@ -239,20 +256,20 @@
     <tbody>
       {% for ticket in tickets %}
       <tr>
-        <td>
-          <a class="btn secondary" href="{{ ticket['link'] }}" target="_blank" rel="noopener">View ticket</a>
+        <td class="ticket-link-cell">
+          <a class="btn secondary" href="{{ ticket['link'] }}" target="_blank" rel="noopener">Ticket</a>
         </td>
         <td>{{ ticket['category'] }}</td>
         <td>{{ ticket['description'] }}</td>
         <td>{{ ticket['date'] }}</td>
-        <td>
+        <td class="analysis-cell">
           {% if ticket['ai_analysis'] %}
             <button
               type="button"
               class="btn secondary"
               data-analysis-html="{{ ticket['ai_analysis']|e }}"
             >
-              View analysis
+              Analysis
             </button>
           {% else %}
             —
@@ -271,21 +288,23 @@
         </td>
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
-        <td class="actions">
-          <form method="get" action="{{ url_for('index') }}">
-            <input type="hidden" name="edit_id" value="{{ ticket['id'] }}" />
-            <input type="hidden" name="sort_by" value="{{ sort_by }}" />
-            <input type="hidden" name="order" value="{{ order }}" />
-            <input type="hidden" name="q" value="{{ description_search }}" />
-            <input type="hidden" name="category_id" value="{{ category_filter }}" />
-            <input type="hidden" name="shared_only" value="{{ 1 if shared_only else 0 }}" />
-            <input type="hidden" name="favorite_only" value="{{ 1 if favorite_only else 0 }}" />
-            <input type="hidden" name="tags" value="{{ tag_filter }}" />
-            <button class="btn secondary" type="submit">Edit</button>
-          </form>
-          <form action="{{ url_for('delete_ticket', ticket_id=ticket['id']) }}" method="post">
-            <button class="btn danger" type="submit" onclick="return confirm('Delete this ticket?');">Delete</button>
-          </form>
+        <td class="actions-cell">
+          <div class="actions">
+            <form method="get" action="{{ url_for('index') }}">
+              <input type="hidden" name="edit_id" value="{{ ticket['id'] }}" />
+              <input type="hidden" name="sort_by" value="{{ sort_by }}" />
+              <input type="hidden" name="order" value="{{ order }}" />
+              <input type="hidden" name="q" value="{{ description_search }}" />
+              <input type="hidden" name="category_id" value="{{ category_filter }}" />
+              <input type="hidden" name="shared_only" value="{{ 1 if shared_only else 0 }}" />
+              <input type="hidden" name="favorite_only" value="{{ 1 if favorite_only else 0 }}" />
+              <input type="hidden" name="tags" value="{{ tag_filter }}" />
+              <button class="btn secondary" type="submit">Edit</button>
+            </form>
+            <form action="{{ url_for('delete_ticket', ticket_id=ticket['id']) }}" method="post">
+              <button class="btn danger" type="submit" onclick="return confirm('Delete this ticket?');">Delete</button>
+            </form>
+          </div>
         </td>
       </tr>
       {% else %}
