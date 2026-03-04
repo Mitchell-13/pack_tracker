@@ -8,7 +8,7 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem; color: #222; }
     h1, h2 { margin-bottom: 0.5rem; }
-    .layout { display: grid; grid-template-columns: minmax(340px, 2fr) minmax(240px, 1fr); gap: 1rem; margin-bottom: 1rem; align-items: start; }
+    .layout { display: grid; grid-template-columns: minmax(340px, 1fr); gap: 1rem; margin-bottom: 1rem; align-items: start; }
     form { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: #f9f9f9; }
     .compact-form { padding: 0.75rem; }
     .compact-form h2 { font-size: 1rem; margin-top: 0; }
@@ -36,10 +36,20 @@
     .analysis-link { color: #1565c0; text-decoration: underline; cursor: pointer; border: 0; background: transparent; padding: 0; font-size: inherit; }
     .modal.hidden { display: none; }
     .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 999; }
-    .modal-content { background: #fff; border-radius: 8px; width: min(100%, 1200px); height: min(100%, 850px); display: flex; flex-direction: column; overflow: hidden; }
+    .modal-content { background: #fff; border-radius: 8px; width: min(98vw, 1500px); height: min(95vh, 1050px); display: flex; flex-direction: column; overflow: hidden; }
     .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
     .modal-header button { width: auto; }
     .modal iframe { border: 0; width: 100%; flex: 1; }
+    .field-with-button { display: flex; gap: 0.5rem; align-items: center; }
+    .field-with-button select { flex: 1; }
+    .field-with-button button { width: auto; white-space: nowrap; }
+    .tag-editor { border: 1px solid #ccc; border-radius: 6px; background: #fff; padding: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 42px; }
+    .tag-editor input { border: 0; outline: none; min-width: 180px; flex: 1; padding: 0.35rem; }
+    .tag-bubble { display: inline-flex; align-items: center; gap: 0.4rem; background: #e8f0fe; color: #113a8f; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.9rem; }
+    .tag-bubble button { width: auto; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; line-height: 1; font-size: 1rem; }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .small-modal-content { background: #fff; border-radius: 8px; width: min(100%, 460px); }
+    .small-modal-body { padding: 1rem; }
     @media (max-width: 840px) {
       .layout { grid-template-columns: 1fr; }
       .controls form { grid-template-columns: 1fr; }
@@ -56,12 +66,15 @@
       <input id="link" name="link" type="url" required />
 
       <label for="category_id">Category</label>
-      <select id="category_id" name="category_id" required>
-        <option value="" selected disabled>Select category</option>
-        {% for category in categories %}
-          <option value="{{ category['id'] }}">{{ category['name'] }}</option>
-        {% endfor %}
-      </select>
+      <div class="field-with-button">
+        <select id="category_id" name="category_id" required>
+          <option value="" selected disabled>Select category</option>
+          {% for category in categories %}
+            <option value="{{ category['id'] }}">{{ category['name'] }}</option>
+          {% endfor %}
+        </select>
+        <button id="open-category-modal" type="button">+ Category</button>
+      </div>
 
       <label for="description">Description</label>
       <textarea id="description" name="description" required></textarea>
@@ -70,7 +83,10 @@
       <textarea id="ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Paste raw HTML for AI analysis"></textarea>
 
       <label for="tags">Tags</label>
-      <input id="tags" name="tags" type="text" placeholder="e.g. urgent, follow-up, customer" />
+      <input id="tags" name="tags" type="hidden" />
+      <div class="tag-editor" data-tag-editor data-hidden-input-id="tags">
+        <input type="text" placeholder="Add a tag then press Tab or click away" data-tag-input />
+      </div>
 
       <label for="date">Date</label>
       <input id="date" name="date" type="date" value="{{ today_date }}" required />
@@ -86,13 +102,6 @@
       </label>
 
       <button type="submit">Save Ticket</button>
-    </form>
-
-    <form action="{{ url_for('add_category') }}" method="post" class="compact-form">
-      <h2>Add Category</h2>
-      <label for="name">Category Name</label>
-      <input id="name" name="name" type="text" placeholder="e.g. Billing" required />
-      <button type="submit">Add</button>
     </form>
   </div>
 
@@ -118,7 +127,10 @@
     <textarea id="edit_ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Paste raw HTML for AI analysis">{{ ticket_to_edit['ai_analysis'] }}</textarea>
 
     <label for="edit_tags">Tags</label>
-    <input id="edit_tags" name="tags" type="text" value="{{ ticket_to_edit['tags'] if ticket_to_edit else '' }}" placeholder="e.g. urgent, follow-up, customer" />
+    <input id="edit_tags" name="tags" type="hidden" value="{{ ticket_to_edit['tags'] if ticket_to_edit else '' }}" />
+    <div class="tag-editor" data-tag-editor data-hidden-input-id="edit_tags">
+      <input type="text" placeholder="Add a tag then press Tab or click away" data-tag-input />
+    </div>
 
     <label for="edit_date">Date</label>
     <input id="edit_date" name="date" type="date" value="{{ ticket_to_edit['date'] }}" required />
@@ -205,7 +217,17 @@
             —
           {% endif %}
         </td>
-        <td>{{ ticket['tags'] if ticket['tags'] else '—' }}</td>
+        <td>
+          {% if ticket['tags'] %}
+            <div class="tag-list">
+              {% for tag in ticket['tags'].split(', ') %}
+                <span class="tag-bubble">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          {% else %}
+            —
+          {% endif %}
+        </td>
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
         <td class="actions">
@@ -233,10 +255,29 @@
     </div>
   </div>
 
+  <div id="category-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+    <div class="small-modal-content">
+      <div class="modal-header">
+        <h3 id="category-modal-title">Add Category</h3>
+        <button id="close-category-modal" type="button">Close</button>
+      </div>
+      <div class="small-modal-body">
+        <form action="{{ url_for('add_category') }}" method="post" class="compact-form">
+          <label for="name">Category Name</label>
+          <input id="name" name="name" type="text" placeholder="e.g. Billing" required />
+          <button type="submit">Add Category</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <script>
     const analysisModal = document.getElementById('analysis-modal');
     const analysisFrame = document.getElementById('analysis-frame');
     const closeAnalysisModalButton = document.getElementById('close-analysis-modal');
+    const categoryModal = document.getElementById('category-modal');
+    const openCategoryModalButton = document.getElementById('open-category-modal');
+    const closeCategoryModalButton = document.getElementById('close-category-modal');
 
     function renderMixedAnalysis(rawAnalysis) {
       const raw = (rawAnalysis || '').trim();
@@ -316,10 +357,118 @@
       }
     });
 
+    function closeCategoryModal() {
+      categoryModal.classList.add('hidden');
+    }
+
+    openCategoryModalButton.addEventListener('click', () => {
+      categoryModal.classList.remove('hidden');
+      const nameInput = document.getElementById('name');
+      if (nameInput) {
+        nameInput.focus();
+      }
+    });
+
+    closeCategoryModalButton.addEventListener('click', closeCategoryModal);
+    categoryModal.addEventListener('click', (event) => {
+      if (event.target === categoryModal) {
+        closeCategoryModal();
+      }
+    });
+
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !analysisModal.classList.contains('hidden')) {
         closeAnalysisModal();
       }
+      if (event.key === 'Escape' && !categoryModal.classList.contains('hidden')) {
+        closeCategoryModal();
+      }
+    });
+
+    function initializeTagEditor(editor) {
+      const hiddenInput = document.getElementById(editor.dataset.hiddenInputId);
+      const tagInput = editor.querySelector('[data-tag-input]');
+      if (!hiddenInput || !tagInput) {
+        return;
+      }
+
+      const tags = [];
+      const existingTags = (hiddenInput.value || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag);
+
+      function syncHiddenInput() {
+        hiddenInput.value = tags.join(', ');
+      }
+
+      function removeTag(indexToRemove) {
+        tags.splice(indexToRemove, 1);
+        renderTags();
+      }
+
+      function renderTags() {
+        editor.querySelectorAll('.tag-bubble').forEach((bubble) => bubble.remove());
+
+        tags.forEach((tag, index) => {
+          const bubble = document.createElement('span');
+          bubble.className = 'tag-bubble';
+          bubble.textContent = tag;
+
+          const removeButton = document.createElement('button');
+          removeButton.type = 'button';
+          removeButton.setAttribute('aria-label', `Remove ${tag}`);
+          removeButton.textContent = '×';
+          removeButton.addEventListener('click', () => removeTag(index));
+          bubble.appendChild(removeButton);
+
+          editor.insertBefore(bubble, tagInput);
+        });
+
+        syncHiddenInput();
+      }
+
+      function addTag(rawTag) {
+        const tag = (rawTag || '').trim();
+        if (!tag) {
+          return;
+        }
+
+        const lowerTag = tag.toLowerCase();
+        if (tags.some((existingTag) => existingTag.toLowerCase() === lowerTag)) {
+          return;
+        }
+
+        tags.push(tag);
+        renderTags();
+      }
+
+      function commitInputTag() {
+        addTag(tagInput.value);
+        tagInput.value = '';
+      }
+
+      existingTags.forEach((tag) => addTag(tag));
+
+      tagInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Tab') {
+          commitInputTag();
+        }
+      });
+
+      tagInput.addEventListener('blur', () => {
+        commitInputTag();
+      });
+
+      editor.addEventListener('click', () => {
+        tagInput.focus();
+      });
+
+      renderTags();
+    }
+
+    document.querySelectorAll('[data-tag-editor]').forEach((editor) => {
+      initializeTagEditor(editor);
     });
   </script>
 </body>
