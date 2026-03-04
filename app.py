@@ -7,17 +7,13 @@ from io import StringIO
 from datetime import datetime, date
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, unquote, urlparse
-from uuid import uuid4
 
 from flask import Flask, Response, g, redirect, render_template, request, url_for
-from werkzeug.utils import secure_filename
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE = BASE_DIR / "tickets.db"
-FAVICON_UPLOAD_DIR = BASE_DIR / "static" / "uploads"
-
 DEFAULT_APPEARANCE_SETTINGS = {
+    "site_title": "Ticket Tracker",
     "primary_color": "#1565c0",
     "background_color": "#ffffff",
     "text_color": "#222222",
@@ -25,8 +21,6 @@ DEFAULT_APPEARANCE_SETTINGS = {
     "font_family": "Arial, sans-serif",
     "favicon_path": "",
 }
-
-ALLOWED_FAVICON_EXTENSIONS = {"ico", "png", "svg", "jpg", "jpeg", "webp"}
 
 app = Flask(__name__)
 
@@ -106,20 +100,6 @@ def init_db() -> None:
 
     db.commit()
     db.close()
-
-
-def _extract_font_family(font_css_url: str) -> str:
-    parsed = urlparse(font_css_url)
-    if parsed.netloc != "fonts.googleapis.com" or not parsed.path.startswith("/css2"):
-        return ""
-
-    family_values = parse_qs(parsed.query).get("family", [])
-    if not family_values:
-        return ""
-
-    first_family = unquote(family_values[0]).split(":", maxsplit=1)[0]
-    cleaned = re.sub(r"\+", " ", first_family).strip()
-    return cleaned
 
 
 def _is_valid_hex_color(color_value: str) -> bool:
@@ -584,45 +564,18 @@ def appearance_settings() -> str:
     error = ""
 
     if request.method == "POST":
+        site_title = request.form.get("site_title", settings["site_title"]).strip()
         primary_color = request.form.get("primary_color", settings["primary_color"]).strip()
-        background_color = request.form.get("background_color", settings["background_color"]).strip()
-        text_color = request.form.get("text_color", settings["text_color"]).strip()
-        font_css_url = request.form.get("font_css_url", "").strip()
 
-        if not all(
-            _is_valid_hex_color(value)
-            for value in (primary_color, background_color, text_color)
-        ):
-            error = "Colors must be valid 6-digit hex values."
-        elif font_css_url and not font_css_url.startswith("https://fonts.googleapis.com/css2"):
-            error = "Google Fonts URL must start with https://fonts.googleapis.com/css2"
+        if not site_title:
+            error = "Site title cannot be empty."
+        elif not _is_valid_hex_color(primary_color):
+            error = "Accent color must be a valid 6-digit hex value."
         else:
+            save_app_setting(db, "site_title", site_title)
             save_app_setting(db, "primary_color", primary_color)
-            save_app_setting(db, "background_color", background_color)
-            save_app_setting(db, "text_color", text_color)
-            save_app_setting(db, "font_css_url", font_css_url)
-            save_app_setting(
-                db,
-                "font_family",
-                f"'{_extract_font_family(font_css_url)}', Arial, sans-serif" if font_css_url else DEFAULT_APPEARANCE_SETTINGS["font_family"],
-            )
-
-            favicon_file = request.files.get("favicon")
-            if favicon_file and favicon_file.filename:
-                extension = favicon_file.filename.rsplit(".", maxsplit=1)[-1].lower() if "." in favicon_file.filename else ""
-                if extension not in ALLOWED_FAVICON_EXTENSIONS:
-                    error = "Unsupported favicon type. Use .ico, .png, .svg, .jpg, .jpeg, or .webp"
-                else:
-                    FAVICON_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-                    safe_name = secure_filename(favicon_file.filename)
-                    new_name = f"{uuid4().hex}-{safe_name}"
-                    upload_path = FAVICON_UPLOAD_DIR / new_name
-                    favicon_file.save(upload_path)
-                    save_app_setting(db, "favicon_path", f"uploads/{new_name}")
-
-            if not error:
-                db.commit()
-                return redirect(url_for("appearance_settings", saved="1"))
+            db.commit()
+            return redirect(url_for("appearance_settings", saved="1"))
 
     if request.args.get("saved") == "1":
         message = "Appearance settings updated."

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quick Add Ticket</title>
+  <title>Quick Add · {{ appearance_settings['site_title'] }}</title>
   {% if appearance_settings['favicon_url'] %}
     <link rel="icon" href="{{ appearance_settings['favicon_url'] }}" />
   {% endif %}
@@ -113,7 +113,7 @@
   </style>
 </head>
 <body>
-  <h1>Quick Add Ticket</h1>
+  <h1>Quick Add · {{ appearance_settings['site_title'] }}</h1>
   <p>This form is intended for bookmarklet usage. It pre-fills the current page URL as the ticket link.</p>
 
   {% if success %}
