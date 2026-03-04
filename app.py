@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from typing import Any
 
@@ -138,6 +138,7 @@ def index() -> str:
         shared_only=shared_only,
         favorite_only=favorite_only,
         ticket_to_edit=ticket_to_edit,
+        today_date=date.today().isoformat(),
     )
 
 
@@ -182,6 +183,14 @@ def edit_ticket(ticket_id: int) -> Any:
     db.commit()
     return redirect(url_for("index"))
 
+
+
+@app.route("/tickets/<int:ticket_id>/delete", methods=["POST"])
+def delete_ticket(ticket_id: int) -> Any:
+    db = get_db()
+    db.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
+    db.commit()
+    return redirect(url_for("index"))
 
 @app.route("/categories", methods=["POST"])
 def add_category() -> Any:
