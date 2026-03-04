@@ -41,8 +41,17 @@
     .danger { border: 1px solid #c62828; color: #c62828; background: #fff; }
     .danger:hover { background: #ffecec; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 0.6rem; text-align: left; }
+    th, td { border: 1px solid #ddd; padding: 0.65rem 0.6rem; text-align: left; }
     th { background: #f0f0f0; }
+    .tickets-table { table-layout: fixed; }
+    .tickets-table col.col-link { width: 110px; }
+    .tickets-table col.col-category { width: 90px; }
+    .tickets-table col.col-date { width: 115px; }
+    .tickets-table col.col-analysis { width: 86px; }
+    .tickets-table col.col-tags { width: 150px; }
+    .tickets-table col.col-shared,
+    .tickets-table col.col-favorite { width: 145px; }
+    .tickets-table col.col-actions { width: 126px; }
     .sort-links a { margin-right: 0.6rem; }
     .muted { color: #666; font-size: 0.9rem; }
     .controls { margin: 1rem 0; }
@@ -50,9 +59,15 @@
     .controls label { margin: 0; font-weight: normal; }
     .ticket-link-cell,
     .analysis-cell,
+    .shared-cell,
+    .favorite-cell,
     .actions-cell {
       text-align: center;
       vertical-align: middle;
+    }
+    .shared-header,
+    .favorite-header {
+      text-align: center;
     }
     .ticket-link-cell .btn,
     .analysis-cell .btn {
@@ -239,7 +254,18 @@
     </form>
   </div>
 
-  <table>
+  <table class="tickets-table">
+    <colgroup>
+      <col class="col-link" />
+      <col class="col-category" />
+      <col class="col-description" />
+      <col class="col-date" />
+      <col class="col-analysis" />
+      <col class="col-tags" />
+      <col class="col-shared" />
+      <col class="col-favorite" />
+      <col class="col-actions" />
+    </colgroup>
     <thead>
       <tr>
         <th>Ticket Link</th>
@@ -248,8 +274,8 @@
         <th>Date</th>
         <th>AI Analysis</th>
         <th>Tags</th>
-        <th>Shared with Manager</th>
-        <th>Favorite</th>
+        <th class="shared-header">Shared with Manager</th>
+        <th class="favorite-header">Favorite</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -261,7 +287,7 @@
         </td>
         <td>{{ ticket['category'] }}</td>
         <td>{{ ticket['description'] }}</td>
-        <td>{{ ticket['date'] }}</td>
+        <td>{{ ticket['date'] | human_date }}</td>
         <td class="analysis-cell">
           {% if ticket['ai_analysis'] %}
             <button
@@ -286,8 +312,8 @@
             —
           {% endif %}
         </td>
-        <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
-        <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
+        <td class="shared-cell">{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
+        <td class="favorite-cell">{{ '⭐' if ticket['favorite'] else '—' }}</td>
         <td class="actions-cell">
           <div class="actions">
             <form method="get" action="{{ url_for('index') }}">
