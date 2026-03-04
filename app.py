@@ -381,6 +381,83 @@ def add_ticket() -> Any:
     return redirect(url_for("index"))
 
 
+@app.route("/bookmarklet/new", methods=["GET", "POST"])
+def bookmarklet_add_ticket() -> str:
+    db = get_db()
+    categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
+
+    if request.method == "GET":
+        link = request.args.get("link", "").strip()
+        return render_template(
+            "bookmarklet_form.html",
+            categories=categories,
+            today_date=date.today().isoformat(),
+            success=False,
+            error=False,
+            form_values={
+                "link": link,
+                "description": "",
+                "ai_analysis": "",
+                "tags": "",
+                "date": date.today().isoformat(),
+                "category_id": "",
+                "shared_with_manager": False,
+                "favorite": False,
+            },
+        )
+
+    ticket_fields = _validated_ticket_fields(request.form)
+    form_values = {
+        "link": request.form.get("link", "").strip(),
+        "description": request.form.get("description", "").strip(),
+        "ai_analysis": request.form.get("ai_analysis", ""),
+        "tags": request.form.get("tags", ""),
+        "date": request.form.get("date", "").strip(),
+        "category_id": request.form.get("category_id", "").strip(),
+        "shared_with_manager": request.form.get("shared_with_manager") == "on",
+        "favorite": request.form.get("favorite") == "on",
+    }
+
+    if ticket_fields is None:
+        return render_template(
+            "bookmarklet_form.html",
+            categories=categories,
+            today_date=date.today().isoformat(),
+            success=False,
+            error=True,
+            form_values=form_values,
+        )
+
+    link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, tags = ticket_fields
+    cursor = db.execute(
+        """
+        INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite),
+    )
+    _sync_ticket_tags(db, cursor.lastrowid, tags)
+    db.commit()
+
+    form_values.update(
+        {
+            "description": "",
+            "ai_analysis": "",
+            "tags": "",
+            "shared_with_manager": False,
+            "favorite": False,
+        }
+    )
+    return render_template(
+        "bookmarklet_form.html",
+        categories=categories,
+        today_date=date.today().isoformat(),
+        success=True,
+        error=False,
+        form_values=form_values,
+    )
+
+
 @app.route("/tickets/<int:ticket_id>/edit", methods=["POST"])
 def edit_ticket(ticket_id: int) -> Any:
     ticket_fields = _validated_ticket_fields(request.form)
