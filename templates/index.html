@@ -15,6 +15,7 @@
     label { display: block; margin: 0.6rem 0 0.25rem; font-weight: bold; }
     input, select, textarea, button { width: 100%; padding: 0.5rem; box-sizing: border-box; }
     textarea { min-height: 80px; }
+    .analysis-input { min-height: 180px; }
     .inline { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
     .inline input { width: auto; }
     .btn-row { display: flex; gap: 0.5rem; }
@@ -26,7 +27,7 @@
     .sort-links a { margin-right: 0.6rem; }
     .muted { color: #666; font-size: 0.9rem; }
     .controls { margin: 1rem 0; }
-    .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.5rem; align-items: center; }
+    .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 0.5rem; align-items: center; }
     .controls label { margin: 0; font-weight: normal; }
     .actions { display: flex; gap: 0.5rem; align-items: center; }
     .actions a { text-decoration: none; }
@@ -35,7 +36,7 @@
     .analysis-link { color: #1565c0; text-decoration: underline; cursor: pointer; border: 0; background: transparent; padding: 0; font-size: inherit; }
     .modal.hidden { display: none; }
     .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 999; }
-    .modal-content { background: #fff; border-radius: 8px; width: min(100%, 1000px); height: min(100%, 750px); display: flex; flex-direction: column; overflow: hidden; }
+    .modal-content { background: #fff; border-radius: 8px; width: min(100%, 1200px); height: min(100%, 850px); display: flex; flex-direction: column; overflow: hidden; }
     .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
     .modal-header button { width: auto; }
     .modal iframe { border: 0; width: 100%; flex: 1; }
@@ -66,7 +67,10 @@
       <textarea id="description" name="description" required></textarea>
 
       <label for="ai_analysis">AI Analysis (HTML)</label>
-      <textarea id="ai_analysis" name="ai_analysis" placeholder="Paste raw HTML for AI analysis"></textarea>
+      <textarea id="ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Paste raw HTML for AI analysis"></textarea>
+
+      <label for="tags">Tags</label>
+      <input id="tags" name="tags" type="text" placeholder="e.g. urgent, follow-up, customer" />
 
       <label for="date">Date</label>
       <input id="date" name="date" type="date" value="{{ today_date }}" required />
@@ -111,7 +115,10 @@
     <textarea id="edit_description" name="description" required>{{ ticket_to_edit['description'] }}</textarea>
 
     <label for="edit_ai_analysis">AI Analysis (HTML)</label>
-    <textarea id="edit_ai_analysis" name="ai_analysis" placeholder="Paste raw HTML for AI analysis">{{ ticket_to_edit['ai_analysis'] }}</textarea>
+    <textarea id="edit_ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Paste raw HTML for AI analysis">{{ ticket_to_edit['ai_analysis'] }}</textarea>
+
+    <label for="edit_tags">Tags</label>
+    <input id="edit_tags" name="tags" type="text" value="{{ ticket_to_edit['tags'] if ticket_to_edit else '' }}" placeholder="e.g. urgent, follow-up, customer" />
 
     <label for="edit_date">Date</label>
     <input id="edit_date" name="date" type="date" value="{{ ticket_to_edit['date'] }}" required />
@@ -137,9 +144,6 @@
 
   <div class="controls">
     <form method="get" action="{{ url_for('index') }}">
-      <input type="hidden" name="sort_by" value="{{ sort_by }}" />
-      <input type="hidden" name="order" value="{{ order }}" />
-
       <input name="q" type="text" placeholder="Search description..." value="{{ description_search }}" />
 
       <select id="category_id_filter" name="category_id">
@@ -161,16 +165,10 @@
         Favorites only
       </label>
 
+      <input name="tags" type="text" placeholder="Filter by tags (comma separated)" value="{{ tag_filter }}" />
+
       <button type="submit">Apply</button>
     </form>
-  </div>
-
-  <div class="sort-links">
-    Sort by:
-    <a href="{{ url_for('index', sort_by='category', order='asc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (A→Z)</a>
-    <a href="{{ url_for('index', sort_by='category', order='desc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Category (Z→A)</a>
-    <a href="{{ url_for('index', sort_by='date', order='asc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Oldest)</a>
-    <a href="{{ url_for('index', sort_by='date', order='desc', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Date (Newest)</a>
   </div>
 
   <table>
@@ -181,6 +179,7 @@
         <th>Description</th>
         <th>Date</th>
         <th>AI Analysis</th>
+        <th>Tags</th>
         <th>Shared with Manager</th>
         <th>Favorite</th>
         <th>Actions</th>
@@ -206,10 +205,11 @@
             —
           {% endif %}
         </td>
+        <td>{{ ticket['tags'] if ticket['tags'] else '—' }}</td>
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
         <td class="actions">
-          <a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0) }}">Edit</a>
+          <a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0, tags=tag_filter) }}">Edit</a>
           <form action="{{ url_for('delete_ticket', ticket_id=ticket['id']) }}" method="post">
             <button class="danger" type="submit" onclick="return confirm('Delete this ticket?');">Delete</button>
           </form>
@@ -217,7 +217,7 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="8">No tickets matched the current filters.</td>
+        <td colspan="9">No tickets matched the current filters.</td>
       </tr>
       {% endfor %}
     </tbody>

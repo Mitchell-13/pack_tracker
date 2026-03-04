@@ -52,6 +52,25 @@ def init_db() -> None:
         )
         """
     )
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL COLLATE NOCASE
+        )
+        """
+    )
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ticket_tags (
+            ticket_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (ticket_id, tag_id),
+            FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+        )
+        """
+    )
 
     ticket_columns = {
         row[1] for row in db.execute("PRAGMA table_info(tickets)").fetchall()
@@ -63,7 +82,38 @@ def init_db() -> None:
     db.close()
 
 
-def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, int] | None:
+def _parse_tags(raw_tags: str) -> list[str]:
+    tag_names: list[str] = []
+    seen: set[str] = set()
+
+    for part in raw_tags.split(","):
+        tag = part.strip()
+        if not tag:
+            continue
+        lowered_tag = tag.lower()
+        if lowered_tag in seen:
+            continue
+        seen.add(lowered_tag)
+        tag_names.append(tag)
+
+    return tag_names
+
+
+def _sync_ticket_tags(db: sqlite3.Connection, ticket_id: int, tag_names: list[str]) -> None:
+    db.execute("DELETE FROM ticket_tags WHERE ticket_id = ?", (ticket_id,))
+
+    for tag_name in tag_names:
+        db.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", (tag_name,))
+        tag_id_row = db.execute("SELECT id FROM tags WHERE LOWER(name) = LOWER(?)", (tag_name,)).fetchone()
+        if tag_id_row is None:
+            continue
+        db.execute(
+            "INSERT OR IGNORE INTO ticket_tags (ticket_id, tag_id) VALUES (?, ?)",
+            (ticket_id, tag_id_row["id"]),
+        )
+
+
+def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, int, list[str]] | None:
     link = form.get("link", "").strip()
     category_id = form.get("category_id", "").strip()
     description = form.get("description", "").strip()
@@ -71,6 +121,7 @@ def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, i
     date_value = form.get("date", "").strip()
     shared_with_manager = 1 if form.get("shared_with_manager") == "on" else 0
     favorite = 1 if form.get("favorite") == "on" else 0
+    tags = _parse_tags(form.get("tags", ""))
 
     if not link or not category_id or not description or not date_value:
         return None
@@ -88,6 +139,7 @@ def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, i
         date_value,
         shared_with_manager,
         favorite,
+        tags,
     )
 
 
@@ -99,6 +151,7 @@ def index() -> str:
     category_filter = request.args.get("category_id", "").strip()
     shared_only = request.args.get("shared_only", "0") == "1"
     favorite_only = request.args.get("favorite_only", "0") == "1"
+    tag_filter = request.args.get("tags", "").strip()
     edit_id = request.args.get("edit_id", "").strip()
 
     allowed_sort = {"date": "t.date", "category": "c.name"}
@@ -122,16 +175,34 @@ def index() -> str:
     if favorite_only:
         where_clauses.append("t.favorite = 1")
 
+    for tag in _parse_tags(tag_filter):
+        where_clauses.append(
+            """
+            EXISTS (
+                SELECT 1
+                FROM ticket_tags tt_filter
+                JOIN tags tg_filter ON tg_filter.id = tt_filter.tag_id
+                WHERE tt_filter.ticket_id = t.id
+                  AND LOWER(tg_filter.name) = LOWER(?)
+            )
+            """
+        )
+        params.append(tag)
+
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     db = get_db()
     tickets = db.execute(
         f"""
         SELECT t.id, t.link, c.name AS category, t.description, t.date,
-               t.ai_analysis, t.shared_with_manager, t.favorite
+               t.ai_analysis, t.shared_with_manager, t.favorite,
+               COALESCE(GROUP_CONCAT(tg.name, ', '), '') AS tags
         FROM tickets t
         JOIN categories c ON t.category_id = c.id
+        LEFT JOIN ticket_tags tt ON tt.ticket_id = t.id
+        LEFT JOIN tags tg ON tg.id = tt.tag_id
         {where_sql}
+        GROUP BY t.id
         ORDER BY {sort_column} {sort_order}, t.id DESC
         """,
         params,
@@ -149,6 +220,19 @@ def index() -> str:
             """,
             (edit_id,),
         ).fetchone()
+        if ticket_to_edit is not None:
+            ticket_tags = db.execute(
+                """
+                SELECT tg.name
+                FROM tags tg
+                JOIN ticket_tags tt ON tt.tag_id = tg.id
+                WHERE tt.ticket_id = ?
+                ORDER BY tg.name ASC
+                """,
+                (ticket_to_edit["id"],),
+            ).fetchall()
+            ticket_to_edit = dict(ticket_to_edit)
+            ticket_to_edit["tags"] = ", ".join(tag["name"] for tag in ticket_tags)
 
     return render_template(
         "index.html",
@@ -160,6 +244,7 @@ def index() -> str:
         category_filter=category_filter,
         shared_only=shared_only,
         favorite_only=favorite_only,
+        tag_filter=tag_filter,
         ticket_to_edit=ticket_to_edit,
         today_date=date.today().isoformat(),
     )
@@ -171,14 +256,17 @@ def add_ticket() -> Any:
     if ticket_fields is None:
         return redirect(url_for("index"))
 
+    link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, tags = ticket_fields
+
     db = get_db()
-    db.execute(
+    cursor = db.execute(
         """
         INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        ticket_fields,
+        (link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite),
     )
+    _sync_ticket_tags(db, cursor.lastrowid, tags)
     db.commit()
     return redirect(url_for("index"))
 
@@ -188,6 +276,8 @@ def edit_ticket(ticket_id: int) -> Any:
     ticket_fields = _validated_ticket_fields(request.form)
     if ticket_fields is None:
         return redirect(url_for("index", edit_id=ticket_id))
+
+    link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, tags = ticket_fields
 
     db = get_db()
     db.execute(
@@ -202,8 +292,9 @@ def edit_ticket(ticket_id: int) -> Any:
             favorite = ?
         WHERE id = ?
         """,
-        (*ticket_fields, ticket_id),
+        (link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, ticket_id),
     )
+    _sync_ticket_tags(db, ticket_id, tags)
     db.commit()
     return redirect(url_for("index"))
 
