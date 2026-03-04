@@ -43,6 +43,12 @@
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #ddd; padding: 0.6rem; text-align: left; }
     th { background: #f0f0f0; }
+    .date-column { width: 120px; white-space: nowrap; }
+    .manager-column,
+    .favorite-column {
+      width: 90px;
+      text-align: center;
+    }
     .sort-links a { margin-right: 0.6rem; }
     .muted { color: #666; font-size: 0.9rem; }
     .controls { margin: 1rem 0; }
@@ -245,11 +251,11 @@
         <th>Ticket Link</th>
         <th>Category</th>
         <th>Description</th>
-        <th>Date</th>
+        <th class="date-column">Date</th>
         <th>AI Analysis</th>
         <th>Tags</th>
-        <th>Shared with Manager</th>
-        <th>Favorite</th>
+        <th class="manager-column">Shared with Manager</th>
+        <th class="favorite-column">Favorite</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -261,7 +267,7 @@
         </td>
         <td>{{ ticket['category'] }}</td>
         <td>{{ ticket['description'] }}</td>
-        <td>{{ ticket['display_date'] }}</td>
+        <td class="date-column">{{ ticket['display_date'] }}</td>
         <td class="analysis-cell">
           {% if ticket['ai_analysis'] %}
             <button
@@ -286,8 +292,8 @@
             —
           {% endif %}
         </td>
-        <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
-        <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
+        <td class="manager-column">{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
+        <td class="favorite-column">{{ '⭐' if ticket['favorite'] else '—' }}</td>
         <td class="actions-cell">
           <div class="actions">
             <form method="get" action="{{ url_for('index') }}">
