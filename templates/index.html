@@ -4,22 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ticket Tracker</title>
-  {% if appearance_settings['favicon_url'] %}
-    <link rel="icon" href="{{ appearance_settings['favicon_url'] }}" />
-  {% endif %}
-  {% if appearance_settings['font_css_url'] %}
-    <link rel="stylesheet" href="{{ appearance_settings['font_css_url'] }}" />
-  {% endif %}
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    :root {
-      --primary-color: {{ appearance_settings['primary_color'] }};
-      --primary-color-hover: color-mix(in srgb, var(--primary-color) 85%, black);
-      --background-color: {{ appearance_settings['background_color'] }};
-      --text-color: {{ appearance_settings['text_color'] }};
-      --app-font-family: {{ appearance_settings['font_family'] }};
-    }
-    body { font-family: var(--app-font-family); margin: 2rem; color: var(--text-color); background: var(--background-color); }
+    body { font-family: Arial, sans-serif; margin: 2rem; color: #222; }
     h1, h2 { margin-bottom: 0.5rem; }
     .layout { display: grid; grid-template-columns: minmax(340px, 1fr); gap: 1rem; margin-bottom: 1rem; align-items: start; }
     form { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: #f9f9f9; }
@@ -34,16 +21,16 @@
       justify-content: center;
       width: auto;
       padding: 0.5rem 0.85rem;
-      border: 1px solid var(--primary-color);
+      border: 1px solid #1f5fbf;
       border-radius: 6px;
-      background: var(--primary-color);
+      background: #1565c0;
       color: #fff;
       text-decoration: none;
       font-size: 0.95rem;
       line-height: 1.2;
     }
-    .btn:hover { background: var(--primary-color-hover); }
-    .btn.secondary { background: #fff; color: var(--primary-color); }
+    .btn:hover { background: #0f4f96; }
+    .btn.secondary { background: #fff; color: #1565c0; }
     .btn.secondary:hover { background: #edf4ff; }
     textarea { min-height: 80px; }
     .analysis-input { min-height: 180px; }
@@ -96,7 +83,7 @@
     .add-ticket-panel summary::after {
       content: '▸';
       font-size: 1rem;
-      color: var(--primary-color);
+      color: #1565c0;
       transition: transform 0.15s ease-in-out;
     }
     .add-ticket-panel[open] summary::after { transform: rotate(90deg); }
@@ -124,7 +111,6 @@
 </head>
 <body>
   <h1>Ticket Tracker</h1>
-  <p><a class="btn secondary" href="{{ url_for('appearance_settings') }}">Customize appearance</a></p>
 
   <div class="layout">
     <form action="{{ url_for('add_ticket') }}" method="post">
