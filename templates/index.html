@@ -452,7 +452,9 @@
 
       tagInput.addEventListener('keydown', (event) => {
         if (event.key === 'Tab') {
+          event.preventDefault();
           commitInputTag();
+          tagInput.focus();
         }
       });
 
