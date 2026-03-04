@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ appearance_settings['site_title'] }}</title>
+  <title>Ticket Tracker</title>
   {% if appearance_settings['favicon_url'] %}
     <link rel="icon" href="{{ appearance_settings['favicon_url'] }}" />
   {% endif %}
@@ -123,7 +123,7 @@
   </style>
 </head>
 <body>
-  <h1>{{ appearance_settings['site_title'] }}</h1>
+  <h1>Ticket Tracker</h1>
   <p><a class="btn secondary" href="{{ url_for('appearance_settings') }}">Customize appearance</a></p>
 
   <div class="layout">
