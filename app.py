@@ -44,6 +44,7 @@ def init_db() -> None:
             link TEXT NOT NULL,
             category_id INTEGER NOT NULL,
             description TEXT NOT NULL,
+            ai_analysis TEXT NOT NULL DEFAULT '',
             date TEXT NOT NULL,
             shared_with_manager INTEGER NOT NULL DEFAULT 0,
             favorite INTEGER NOT NULL DEFAULT 0,
@@ -51,14 +52,22 @@ def init_db() -> None:
         )
         """
     )
+
+    ticket_columns = {
+        row[1] for row in db.execute("PRAGMA table_info(tickets)").fetchall()
+    }
+    if "ai_analysis" not in ticket_columns:
+        db.execute("ALTER TABLE tickets ADD COLUMN ai_analysis TEXT NOT NULL DEFAULT ''")
+
     db.commit()
     db.close()
 
 
-def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, int, int] | None:
+def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, int] | None:
     link = form.get("link", "").strip()
     category_id = form.get("category_id", "").strip()
     description = form.get("description", "").strip()
+    ai_analysis = form.get("ai_analysis", "")
     date_value = form.get("date", "").strip()
     shared_with_manager = 1 if form.get("shared_with_manager") == "on" else 0
     favorite = 1 if form.get("favorite") == "on" else 0
@@ -71,7 +80,15 @@ def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, int, int] |
     except ValueError:
         return None
 
-    return link, category_id, description, date_value, shared_with_manager, favorite
+    return (
+        link,
+        category_id,
+        description,
+        ai_analysis,
+        date_value,
+        shared_with_manager,
+        favorite,
+    )
 
 
 @app.route("/", methods=["GET"])
@@ -111,7 +128,7 @@ def index() -> str:
     tickets = db.execute(
         f"""
         SELECT t.id, t.link, c.name AS category, t.description, t.date,
-               t.shared_with_manager, t.favorite
+               t.ai_analysis, t.shared_with_manager, t.favorite
         FROM tickets t
         JOIN categories c ON t.category_id = c.id
         {where_sql}
@@ -126,7 +143,7 @@ def index() -> str:
     if edit_id.isdigit():
         ticket_to_edit = db.execute(
             """
-            SELECT id, link, category_id, description, date, shared_with_manager, favorite
+            SELECT id, link, category_id, description, ai_analysis, date, shared_with_manager, favorite
             FROM tickets
             WHERE id = ?
             """,
@@ -157,8 +174,8 @@ def add_ticket() -> Any:
     db = get_db()
     db.execute(
         """
-        INSERT INTO tickets (link, category_id, description, date, shared_with_manager, favorite)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         ticket_fields,
     )
@@ -179,6 +196,7 @@ def edit_ticket(ticket_id: int) -> Any:
         SET link = ?,
             category_id = ?,
             description = ?,
+            ai_analysis = ?,
             date = ?,
             shared_with_manager = ?,
             favorite = ?
