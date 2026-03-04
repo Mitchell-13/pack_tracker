@@ -15,16 +15,6 @@ DATABASE = BASE_DIR / "tickets.db"
 app = Flask(__name__)
 
 
-@app.template_filter("human_date")
-def human_date(value: str) -> str:
-    try:
-        parsed_date = datetime.strptime(value, "%Y-%m-%d")
-    except (TypeError, ValueError):
-        return value
-
-    return f"{parsed_date:%b} {parsed_date.day}, {parsed_date:%Y}"
-
-
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
         g.db = sqlite3.connect(DATABASE)
