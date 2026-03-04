@@ -248,9 +248,33 @@
       const htmlStart = lowerRaw.indexOf('<html');
       const htmlEnd = lowerRaw.lastIndexOf('</html>');
 
+      function normalizeMarkdown(rawMarkdown) {
+        let normalized = (rawMarkdown || '').trim();
+        if (!normalized) {
+          return '';
+        }
+
+        const fencedBlockMatch = normalized.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/i);
+        if (fencedBlockMatch) {
+          normalized = fencedBlockMatch[1].trim();
+        }
+
+        const lines = normalized.split('\n');
+        const indentedLines = lines
+          .filter((line) => line.trim())
+          .map((line) => line.match(/^\s*/)[0].length);
+        const commonIndent = indentedLines.length ? Math.min(...indentedLines) : 0;
+
+        if (commonIndent >= 2) {
+          normalized = lines.map((line) => line.slice(commonIndent)).join('\n');
+        }
+
+        return normalized;
+      }
+
       if (htmlStart !== -1 && htmlEnd !== -1 && htmlEnd > htmlStart) {
         const htmlDocument = raw.slice(htmlStart, htmlEnd + 7);
-        const trailingMarkdown = raw.slice(htmlEnd + 7).trim();
+        const trailingMarkdown = normalizeMarkdown(raw.slice(htmlEnd + 7));
 
         if (!trailingMarkdown) {
           return htmlDocument;
@@ -270,7 +294,7 @@
         return raw;
       }
 
-      return `<!doctype html><html><head><meta charset="utf-8" /><title>AI Analysis</title></head><body style="font-family: Arial, sans-serif; padding: 1.25rem;">${marked.parse(raw)}</body></html>`;
+      return `<!doctype html><html><head><meta charset="utf-8" /><title>AI Analysis</title></head><body style="font-family: Arial, sans-serif; padding: 1.25rem;">${marked.parse(normalizeMarkdown(raw))}</body></html>`;
     }
 
     document.querySelectorAll('[data-analysis-html]').forEach((button) => {
