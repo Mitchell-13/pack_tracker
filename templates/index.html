@@ -14,6 +14,24 @@
     .compact-form h2 { font-size: 1rem; margin-top: 0; }
     label { display: block; margin: 0.6rem 0 0.25rem; font-weight: bold; }
     input, select, textarea, button { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+    button { cursor: pointer; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      padding: 0.5rem 0.85rem;
+      border: 1px solid #1f5fbf;
+      border-radius: 6px;
+      background: #1565c0;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.95rem;
+      line-height: 1.2;
+    }
+    .btn:hover { background: #0f4f96; }
+    .btn.secondary { background: #fff; color: #1565c0; }
+    .btn.secondary:hover { background: #edf4ff; }
     textarea { min-height: 80px; }
     .analysis-input { min-height: 180px; }
     .inline { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
@@ -21,18 +39,37 @@
     .btn-row { display: flex; gap: 0.5rem; }
     .btn-row button { width: auto; }
     .danger { border: 1px solid #c62828; color: #c62828; background: #fff; }
+    .danger:hover { background: #ffecec; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #ddd; padding: 0.6rem; text-align: left; }
     th { background: #f0f0f0; }
     .sort-links a { margin-right: 0.6rem; }
     .muted { color: #666; font-size: 0.9rem; }
     .controls { margin: 1rem 0; }
-    .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 0.5rem; align-items: center; }
+    .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto auto; gap: 0.5rem; align-items: center; }
     .controls label { margin: 0; font-weight: normal; }
     .actions { display: flex; gap: 0.5rem; align-items: center; }
     .actions a { text-decoration: none; }
     .actions form { border: 0; background: transparent; padding: 0; }
-    .actions button { width: auto; padding: 0.25rem 0.5rem; }
+    .actions button { width: auto; }
+    .add-ticket-panel summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      margin-bottom: 0.75rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .add-ticket-panel summary::-webkit-details-marker { display: none; }
+    .add-ticket-panel summary::after {
+      content: '▸';
+      font-size: 1rem;
+      color: #1565c0;
+      transition: transform 0.15s ease-in-out;
+    }
+    .add-ticket-panel[open] summary::after { transform: rotate(90deg); }
     .analysis-link { color: #1565c0; text-decoration: underline; cursor: pointer; border: 0; background: transparent; padding: 0; font-size: inherit; }
     .modal.hidden { display: none; }
     .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 999; }
@@ -61,7 +98,8 @@
 
   <div class="layout">
     <form action="{{ url_for('add_ticket') }}" method="post">
-      <h2>Add Ticket Entry</h2>
+      <details class="add-ticket-panel">
+        <summary>Add Ticket Entry</summary>
       <label for="link">Ticket Link</label>
       <input id="link" name="link" type="url" required />
 
@@ -73,7 +111,7 @@
             <option value="{{ category['id'] }}">{{ category['name'] }}</option>
           {% endfor %}
         </select>
-        <button id="open-category-modal" type="button">+ Category</button>
+        <button id="open-category-modal" class="btn secondary" type="button">+ Category</button>
       </div>
 
       <label for="description">Description</label>
@@ -101,7 +139,8 @@
         Favorite
       </label>
 
-      <button type="submit">Save Ticket</button>
+      <button class="btn" type="submit">Save Ticket</button>
+      </details>
     </form>
   </div>
 
@@ -146,8 +185,8 @@
     </label>
 
     <div class="btn-row">
-      <button type="submit">Update Ticket</button>
-      <a href="{{ url_for('index') }}">Cancel editing</a>
+      <button class="btn" type="submit">Update Ticket</button>
+      <button class="btn secondary" type="submit" formaction="{{ url_for('index') }}" formmethod="get">Cancel editing</button>
     </div>
   </form>
   {% endif %}
@@ -179,8 +218,8 @@
 
       <input name="tags" type="text" placeholder="Filter by tags (comma separated)" value="{{ tag_filter }}" />
 
-      <button type="submit">Apply</button>
-      <a href="{{ url_for('export_tickets', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0, tags=tag_filter) }}">Export CSV</a>
+      <button class="btn" type="submit">Apply</button>
+      <button class="btn secondary" type="submit" formaction="{{ url_for('export_tickets') }}" formmethod="get">Export CSV</button>
     </form>
   </div>
 
@@ -232,9 +271,19 @@
         <td>{{ '✅' if ticket['shared_with_manager'] else '❌' }}</td>
         <td>{{ '⭐' if ticket['favorite'] else '—' }}</td>
         <td class="actions">
-          <a href="{{ url_for('index', edit_id=ticket['id'], sort_by=sort_by, order=order, q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0, tags=tag_filter) }}">Edit</a>
+          <form method="get" action="{{ url_for('index') }}">
+            <input type="hidden" name="edit_id" value="{{ ticket['id'] }}" />
+            <input type="hidden" name="sort_by" value="{{ sort_by }}" />
+            <input type="hidden" name="order" value="{{ order }}" />
+            <input type="hidden" name="q" value="{{ description_search }}" />
+            <input type="hidden" name="category_id" value="{{ category_filter }}" />
+            <input type="hidden" name="shared_only" value="{{ 1 if shared_only else 0 }}" />
+            <input type="hidden" name="favorite_only" value="{{ 1 if favorite_only else 0 }}" />
+            <input type="hidden" name="tags" value="{{ tag_filter }}" />
+            <button class="btn secondary" type="submit">Edit</button>
+          </form>
           <form action="{{ url_for('delete_ticket', ticket_id=ticket['id']) }}" method="post">
-            <button class="danger" type="submit" onclick="return confirm('Delete this ticket?');">Delete</button>
+            <button class="btn danger" type="submit" onclick="return confirm('Delete this ticket?');">Delete</button>
           </form>
         </td>
       </tr>
