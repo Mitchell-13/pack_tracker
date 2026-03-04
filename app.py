@@ -115,6 +115,11 @@ def _sync_ticket_tags(db: sqlite3.Connection, ticket_id: int, tag_names: list[st
         )
 
 
+def _human_readable_date(raw_date: str) -> str:
+    parsed_date = datetime.strptime(raw_date, "%Y-%m-%d")
+    return f"{parsed_date:%B} {parsed_date.day}, {parsed_date:%Y}"
+
+
 def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, int, list[str]] | None:
     link = form.get("link", "").strip()
     category_id = form.get("category_id", "").strip()
@@ -194,7 +199,7 @@ def index() -> str:
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     db = get_db()
-    tickets = db.execute(
+    ticket_rows = db.execute(
         f"""
         SELECT t.id, t.link, c.name AS category, t.description, t.date,
                t.ai_analysis, t.shared_with_manager, t.favorite,
@@ -209,6 +214,12 @@ def index() -> str:
         """,
         params,
     ).fetchall()
+
+    tickets = []
+    for ticket in ticket_rows:
+        ticket_dict = dict(ticket)
+        ticket_dict["display_date"] = _human_readable_date(ticket_dict["date"])
+        tickets.append(ticket_dict)
 
     categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
 
