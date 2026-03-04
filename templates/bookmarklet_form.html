@@ -4,13 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quick Add Ticket</title>
+  {% if appearance_settings['favicon_url'] %}
+    <link rel="icon" href="{{ appearance_settings['favicon_url'] }}" />
+  {% endif %}
+  {% if appearance_settings['font_css_url'] %}
+    <link rel="stylesheet" href="{{ appearance_settings['font_css_url'] }}" />
+  {% endif %}
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: {{ appearance_settings['font_family'] }};
       max-width: 720px;
       margin: 2rem auto;
       padding: 0 1rem;
       line-height: 1.4;
+      color: {{ appearance_settings['text_color'] }};
+      background: {{ appearance_settings['background_color'] }};
     }
 
     form {

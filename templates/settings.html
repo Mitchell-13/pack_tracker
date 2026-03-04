@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Appearance Settings</title>
+  {% if appearance_settings['favicon_url'] %}
+    <link rel="icon" href="{{ appearance_settings['favicon_url'] }}" />
+  {% endif %}
+  {% if appearance_settings['font_css_url'] %}
+    <link rel="stylesheet" href="{{ appearance_settings['font_css_url'] }}" />
+  {% endif %}
+  <style>
+    :root {
+      --primary-color: {{ appearance_settings['primary_color'] }};
+      --background-color: {{ appearance_settings['background_color'] }};
+      --text-color: {{ appearance_settings['text_color'] }};
+      --app-font-family: {{ appearance_settings['font_family'] }};
+    }
+
+    body {
+      font-family: var(--app-font-family);
+      margin: 2rem auto;
+      max-width: 760px;
+      padding: 0 1rem;
+      color: var(--text-color);
+      background: var(--background-color);
+    }
+
+    form {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem;
+      background: #f9f9f9;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    label { font-weight: bold; }
+    input, button { padding: 0.5rem; }
+    .btn {
+      width: fit-content;
+      border: 1px solid var(--primary-color);
+      background: var(--primary-color);
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn.secondary {
+      background: white;
+      color: var(--primary-color);
+    }
+    .msg { padding: 0.6rem; border-radius: 6px; margin: 0.5rem 0; }
+    .msg.success { border: 1px solid #56a46b; background: #e8f8ec; }
+    .msg.error { border: 1px solid #c66a6a; background: #fdecec; }
+    .row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <h1>Customize Appearance</h1>
+  <p><a class="btn secondary" href="{{ url_for('index') }}">← Back to tickets</a></p>
+
+  {% if message %}
+    <div class="msg success">{{ message }}</div>
+  {% endif %}
+
+  {% if error %}
+    <div class="msg error">{{ error }}</div>
+  {% endif %}
+
+  <form action="{{ url_for('appearance_settings') }}" method="post" enctype="multipart/form-data">
+    <label for="primary_color">Primary color</label>
+    <input id="primary_color" name="primary_color" type="color" value="{{ settings['primary_color'] }}" required />
+
+    <label for="background_color">Background color</label>
+    <input id="background_color" name="background_color" type="color" value="{{ settings['background_color'] }}" required />
+
+    <label for="text_color">Text color</label>
+    <input id="text_color" name="text_color" type="color" value="{{ settings['text_color'] }}" required />
+
+    <label for="font_css_url">Google Fonts CSS2 URL</label>
+    <input
+      id="font_css_url"
+      name="font_css_url"
+      type="url"
+      value="{{ settings['font_css_url'] }}"
+      placeholder="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+    />
+
+    <label for="favicon">Upload favicon</label>
+    <input id="favicon" name="favicon" type="file" accept=".ico,.png,.svg,.jpg,.jpeg,.webp" />
+
+    <div class="row">
+      <button class="btn" type="submit">Save appearance</button>
+      {% if appearance_settings['favicon_url'] %}
+        <span>Current favicon:</span>
+        <img src="{{ appearance_settings['favicon_url'] }}" alt="Current favicon" width="24" height="24" />
+      {% endif %}
+    </div>
+  </form>
+</body>
+</html>
