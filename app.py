@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import sqlite3
+import csv
+from io import StringIO
 from datetime import datetime, date
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, g, redirect, render_template, request, url_for
+from flask import Flask, Response, g, redirect, render_template, request, url_for
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE = BASE_DIR / "tickets.db"
@@ -247,6 +249,114 @@ def index() -> str:
         tag_filter=tag_filter,
         ticket_to_edit=ticket_to_edit,
         today_date=date.today().isoformat(),
+    )
+
+
+@app.route("/tickets/export", methods=["GET"])
+def export_tickets() -> Response:
+    description_search = request.args.get("q", "").strip()
+    category_filter = request.args.get("category_id", "").strip()
+    shared_only = request.args.get("shared_only", "0") == "1"
+    favorite_only = request.args.get("favorite_only", "0") == "1"
+    tag_filter = request.args.get("tags", "").strip()
+
+    where_clauses: list[str] = []
+    params: list[Any] = []
+
+    if description_search:
+        where_clauses.append("LOWER(t.description) LIKE ?")
+        params.append(f"%{description_search.lower()}%")
+
+    if category_filter.isdigit():
+        where_clauses.append("t.category_id = ?")
+        params.append(int(category_filter))
+
+    if shared_only:
+        where_clauses.append("t.shared_with_manager = 1")
+
+    if favorite_only:
+        where_clauses.append("t.favorite = 1")
+
+    for tag in _parse_tags(tag_filter):
+        where_clauses.append(
+            """
+            EXISTS (
+                SELECT 1
+                FROM ticket_tags tt_filter
+                JOIN tags tg_filter ON tg_filter.id = tt_filter.tag_id
+                WHERE tt_filter.ticket_id = t.id
+                  AND LOWER(tg_filter.name) = LOWER(?)
+            )
+            """
+        )
+        params.append(tag)
+
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+    db = get_db()
+    tickets = db.execute(
+        f"""
+        SELECT t.id,
+               t.link,
+               t.category_id,
+               c.name AS category,
+               t.description,
+               t.ai_analysis,
+               t.date,
+               t.shared_with_manager,
+               t.favorite,
+               COALESCE(GROUP_CONCAT(tg.name, ', '), '') AS tags
+        FROM tickets t
+        JOIN categories c ON t.category_id = c.id
+        LEFT JOIN ticket_tags tt ON tt.ticket_id = t.id
+        LEFT JOIN tags tg ON tg.id = tt.tag_id
+        {where_sql}
+        GROUP BY t.id
+        ORDER BY t.date DESC, t.id DESC
+        """,
+        params,
+    ).fetchall()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "id",
+            "link",
+            "category_id",
+            "category",
+            "description",
+            "ai_analysis",
+            "date",
+            "shared_with_manager",
+            "favorite",
+            "tags",
+        ]
+    )
+
+    for ticket in tickets:
+        writer.writerow(
+            [
+                ticket["id"],
+                ticket["link"],
+                ticket["category_id"],
+                ticket["category"],
+                ticket["description"],
+                ticket["ai_analysis"],
+                ticket["date"],
+                ticket["shared_with_manager"],
+                ticket["favorite"],
+                ticket["tags"],
+            ]
+        )
+
+    csv_data = output.getvalue()
+    output.close()
+
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=tickets-export.csv"},
     )
 
 

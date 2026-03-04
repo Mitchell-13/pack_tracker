@@ -180,6 +180,7 @@
       <input name="tags" type="text" placeholder="Filter by tags (comma separated)" value="{{ tag_filter }}" />
 
       <button type="submit">Apply</button>
+      <a href="{{ url_for('export_tickets', q=description_search, category_id=category_filter, shared_only=1 if shared_only else 0, favorite_only=1 if favorite_only else 0, tags=tag_filter) }}">Export CSV</a>
     </form>
   </div>
 
