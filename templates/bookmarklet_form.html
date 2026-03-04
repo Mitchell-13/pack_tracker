@@ -39,6 +39,47 @@
       resize: vertical;
     }
 
+    .tag-editor {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      padding: 0.35rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      min-height: 42px;
+    }
+
+    .tag-editor input {
+      border: 0;
+      outline: none;
+      min-width: 180px;
+      flex: 1;
+      padding: 0.35rem;
+    }
+
+    .tag-bubble {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #e8f0fe;
+      color: #113a8f;
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.9rem;
+    }
+
+    .tag-bubble button {
+      width: auto;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      font-size: 1rem;
+    }
+
     .inline {
       display: flex;
       align-items: center;
@@ -95,8 +136,11 @@
     <label for="ai_analysis">AI Analysis (optional HTML)</label>
     <textarea id="ai_analysis" name="ai_analysis">{{ form_values['ai_analysis'] }}</textarea>
 
-    <label for="tags">Tags (comma separated)</label>
-    <input id="tags" name="tags" type="text" value="{{ form_values['tags'] }}" />
+    <label for="tags">Tags</label>
+    <input id="tags" name="tags" type="hidden" value="{{ form_values['tags'] }}" />
+    <div class="tag-editor" data-tag-editor data-hidden-input-id="tags">
+      <input type="text" placeholder="Add a tag then press Tab or click away" data-tag-input />
+    </div>
 
     <label for="date">Date</label>
     <input id="date" name="date" type="date" value="{{ form_values['date'] or today_date }}" required />
@@ -113,5 +157,95 @@
 
     <button type="submit">Save Ticket</button>
   </form>
+
+  <script>
+    function initializeTagEditor(editor) {
+      const hiddenInput = document.getElementById(editor.dataset.hiddenInputId);
+      const tagInput = editor.querySelector('[data-tag-input]');
+      if (!hiddenInput || !tagInput) {
+        return;
+      }
+
+      const tags = [];
+      const existingTags = (hiddenInput.value || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag);
+
+      function syncHiddenInput() {
+        hiddenInput.value = tags.join(', ');
+      }
+
+      function removeTag(indexToRemove) {
+        tags.splice(indexToRemove, 1);
+        renderTags();
+      }
+
+      function renderTags() {
+        editor.querySelectorAll('.tag-bubble').forEach((bubble) => bubble.remove());
+
+        tags.forEach((tag, index) => {
+          const bubble = document.createElement('span');
+          bubble.className = 'tag-bubble';
+          bubble.textContent = tag;
+
+          const removeButton = document.createElement('button');
+          removeButton.type = 'button';
+          removeButton.setAttribute('aria-label', `Remove ${tag}`);
+          removeButton.textContent = '×';
+          removeButton.addEventListener('click', () => removeTag(index));
+          bubble.appendChild(removeButton);
+
+          editor.insertBefore(bubble, tagInput);
+        });
+
+        syncHiddenInput();
+      }
+
+      function addTag(rawTag) {
+        const tag = (rawTag || '').trim();
+        if (!tag) {
+          return;
+        }
+
+        const lowerTag = tag.toLowerCase();
+        if (tags.some((existingTag) => existingTag.toLowerCase() === lowerTag)) {
+          return;
+        }
+
+        tags.push(tag);
+        renderTags();
+      }
+
+      function commitInputTag() {
+        addTag(tagInput.value);
+        tagInput.value = '';
+      }
+
+      existingTags.forEach((tag) => addTag(tag));
+
+      tagInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          commitInputTag();
+          tagInput.focus();
+        }
+      });
+
+      tagInput.addEventListener('blur', () => {
+        commitInputTag();
+      });
+
+      editor.addEventListener('click', () => {
+        tagInput.focus();
+      });
+
+      renderTags();
+    }
+
+    document.querySelectorAll('[data-tag-editor]').forEach((editor) => {
+      initializeTagEditor(editor);
+    });
+  </script>
 </body>
 </html>

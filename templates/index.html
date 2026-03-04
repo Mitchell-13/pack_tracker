@@ -70,7 +70,6 @@
       transition: transform 0.15s ease-in-out;
     }
     .add-ticket-panel[open] summary::after { transform: rotate(90deg); }
-    .analysis-link { color: #1565c0; text-decoration: underline; cursor: pointer; border: 0; background: transparent; padding: 0; font-size: inherit; }
     .modal.hidden { display: none; }
     .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 999; }
     .modal-content { background: #fff; border-radius: 8px; width: min(98vw, 1500px); height: min(95vh, 1050px); display: flex; flex-direction: column; overflow: hidden; }
@@ -240,7 +239,9 @@
     <tbody>
       {% for ticket in tickets %}
       <tr>
-        <td><a href="{{ ticket['link'] }}" target="_blank" rel="noopener">Open Ticket</a></td>
+        <td>
+          <a class="btn secondary" href="{{ ticket['link'] }}" target="_blank" rel="noopener">View ticket</a>
+        </td>
         <td>{{ ticket['category'] }}</td>
         <td>{{ ticket['description'] }}</td>
         <td>{{ ticket['date'] }}</td>
@@ -248,7 +249,7 @@
           {% if ticket['ai_analysis'] %}
             <button
               type="button"
-              class="analysis-link"
+              class="btn secondary"
               data-analysis-html="{{ ticket['ai_analysis']|e }}"
             >
               View analysis
