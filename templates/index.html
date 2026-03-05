@@ -135,7 +135,7 @@
     <form action="{{ url_for('add_ticket') }}" method="post">
       <details class="add-ticket-panel">
         <summary>Add Ticket Entry</summary>
-      <label for="link">Ticket Link</label>
+      <label for="link">Link</label>
       <input id="link" name="link" type="url" required />
 
       <label for="category_id">Category</label>
@@ -182,7 +182,7 @@
   {% if ticket_to_edit %}
   <form action="{{ url_for('edit_ticket', ticket_id=ticket_to_edit['id']) }}" method="post">
     <h2>Edit Ticket #{{ ticket_to_edit['id'] }}</h2>
-    <label for="edit_link">Ticket Link</label>
+    <label for="edit_link">Link</label>
     <input id="edit_link" name="link" type="url" value="{{ ticket_to_edit['link'] }}" required />
 
     <label for="edit_category_id">Category</label>
@@ -261,7 +261,7 @@
   <table>
     <thead>
       <tr>
-        <th>Ticket Link</th>
+        <th>Link</th>
         <th>Category</th>
         <th>Description</th>
         <th class="date-column">Date</th>
