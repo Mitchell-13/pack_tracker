@@ -150,6 +150,10 @@ def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, i
     )
 
 
+@app.route("/favicon.ico")
+def favicon() -> Response:
+    return redirect(url_for("static", filename="favicon.ico"))
+
 @app.route("/", methods=["GET"])
 def index() -> str:
     sort_by = request.args.get("sort_by", "date")
