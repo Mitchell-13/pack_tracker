@@ -107,6 +107,11 @@
     .tag-editor input { border: 0; outline: none; min-width: 180px; flex: 1; padding: 0.35rem; }
     .tag-bubble { display: inline-flex; align-items: center; gap: 0.4rem; background: #e8f0fe; color: #113a8f; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.9rem; }
     .tag-bubble button { width: auto; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; line-height: 1; font-size: 1rem; }
+    button.tag-bubble {
+      width: auto;
+      max-width: 100%;
+      flex: 0 0 auto;
+    }
     .tag-bubble.filter-tag {
       border: 1px solid #b9d0ff;
       cursor: pointer;
