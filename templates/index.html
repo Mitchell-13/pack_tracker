@@ -107,6 +107,13 @@
     .tag-editor input { border: 0; outline: none; min-width: 180px; flex: 1; padding: 0.35rem; }
     .tag-bubble { display: inline-flex; align-items: center; gap: 0.4rem; background: #e8f0fe; color: #113a8f; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.9rem; }
     .tag-bubble button { width: auto; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; line-height: 1; font-size: 1rem; }
+    .tag-bubble.filter-tag {
+      border: 1px solid #b9d0ff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background-color 0.1s ease-in-out;
+    }
+    .tag-bubble.filter-tag:hover { background: #d7e6ff; }
     .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
     .small-modal-content { background: #fff; border-radius: 8px; width: min(100%, 460px); }
     .small-modal-body { padding: 1rem; }
@@ -239,7 +246,7 @@
         Favorites only
       </label>
 
-      <input name="tags" type="text" placeholder="Filter by tags (comma separated)" value="{{ tag_filter }}" />
+      <input id="tags_filter" name="tags" type="text" placeholder="Filter by tags (comma separated)" value="{{ tag_filter }}" />
 
       <button class="btn" type="submit">Apply</button>
       <button class="btn secondary" type="submit" formaction="{{ url_for('export_tickets') }}" formmethod="get">Export CSV</button>
@@ -286,7 +293,7 @@
           {% if ticket['tags'] %}
             <div class="tag-list">
               {% for tag in ticket['tags'].split(', ') %}
-                <span class="tag-bubble">{{ tag }}</span>
+                <button type="button" class="tag-bubble filter-tag" data-filter-tag="{{ tag }}">{{ tag }}</button>
               {% endfor %}
             </div>
           {% else %}
@@ -548,6 +555,39 @@
 
     document.querySelectorAll('[data-tag-editor]').forEach((editor) => {
       initializeTagEditor(editor);
+    });
+
+    const filterForm = document.querySelector('.controls form');
+    const tagsFilterInput = document.getElementById('tags_filter');
+
+    function parseTags(rawTags) {
+      return (rawTags || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag);
+    }
+
+    document.querySelectorAll('[data-filter-tag]').forEach((tagButton) => {
+      tagButton.addEventListener('click', () => {
+        if (!filterForm || !tagsFilterInput) {
+          return;
+        }
+
+        const clickedTag = (tagButton.dataset.filterTag || '').trim();
+        if (!clickedTag) {
+          return;
+        }
+
+        const selectedTags = parseTags(tagsFilterInput.value);
+        const isAlreadySelected = selectedTags.some((existingTag) => existingTag.toLowerCase() === clickedTag.toLowerCase());
+
+        if (!isAlreadySelected) {
+          selectedTags.push(clickedTag);
+          tagsFilterInput.value = selectedTags.join(', ');
+        }
+
+        filterForm.requestSubmit();
+      });
     });
   </script>
 </body>
