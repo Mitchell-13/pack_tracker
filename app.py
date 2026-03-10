@@ -120,6 +120,79 @@ def _human_readable_date(raw_date: str) -> str:
     return f"{parsed_date:%B} {parsed_date.day}, {parsed_date:%Y}"
 
 
+def _validated_filter_date(raw_date: str) -> str:
+    normalized_date = raw_date.strip()
+    if not normalized_date:
+        return ""
+
+    try:
+        datetime.strptime(normalized_date, "%Y-%m-%d")
+    except ValueError:
+        return ""
+
+    return normalized_date
+
+
+def _build_ticket_filters(args: Any) -> tuple[list[str], list[Any], dict[str, Any]]:
+    description_search = args.get("q", "").strip()
+    category_filter = args.get("category_id", "").strip()
+    shared_only = args.get("shared_only", "0") == "1"
+    favorite_only = args.get("favorite_only", "0") == "1"
+    tag_filter = args.get("tags", "").strip()
+    date_from = _validated_filter_date(args.get("date_from", ""))
+    date_to = _validated_filter_date(args.get("date_to", ""))
+
+    where_clauses: list[str] = []
+    params: list[Any] = []
+
+    if description_search:
+        where_clauses.append("LOWER(t.description) LIKE ?")
+        params.append(f"%{description_search.lower()}%")
+
+    if category_filter.isdigit():
+        where_clauses.append("t.category_id = ?")
+        params.append(int(category_filter))
+
+    if shared_only:
+        where_clauses.append("t.shared_with_manager = 1")
+
+    if favorite_only:
+        where_clauses.append("t.favorite = 1")
+
+    if date_from:
+        where_clauses.append("t.date >= ?")
+        params.append(date_from)
+
+    if date_to:
+        where_clauses.append("t.date <= ?")
+        params.append(date_to)
+
+    for tag in _parse_tags(tag_filter):
+        where_clauses.append(
+            """
+            EXISTS (
+                SELECT 1
+                FROM ticket_tags tt_filter
+                JOIN tags tg_filter ON tg_filter.id = tt_filter.tag_id
+                WHERE tt_filter.ticket_id = t.id
+                  AND LOWER(tg_filter.name) = LOWER(?)
+            )
+            """
+        )
+        params.append(tag)
+
+    filter_state = {
+        "description_search": description_search,
+        "category_filter": category_filter,
+        "shared_only": shared_only,
+        "favorite_only": favorite_only,
+        "tag_filter": tag_filter,
+        "date_from": date_from,
+        "date_to": date_to,
+    }
+    return where_clauses, params, filter_state
+
+
 def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, int, list[str]] | None:
     link = form.get("link", "").strip()
     category_id = form.get("category_id", "").strip()
@@ -158,47 +231,13 @@ def favicon() -> Response:
 def index() -> str:
     sort_by = request.args.get("sort_by", "date")
     order = request.args.get("order", "desc")
-    description_search = request.args.get("q", "").strip()
-    category_filter = request.args.get("category_id", "").strip()
-    shared_only = request.args.get("shared_only", "0") == "1"
-    favorite_only = request.args.get("favorite_only", "0") == "1"
-    tag_filter = request.args.get("tags", "").strip()
     edit_id = request.args.get("edit_id", "").strip()
 
     allowed_sort = {"date": "t.date", "category": "c.name"}
     sort_column = allowed_sort.get(sort_by, "t.date")
     sort_order = "ASC" if order == "asc" else "DESC"
 
-    where_clauses: list[str] = []
-    params: list[Any] = []
-
-    if description_search:
-        where_clauses.append("LOWER(t.description) LIKE ?")
-        params.append(f"%{description_search.lower()}%")
-
-    if category_filter.isdigit():
-        where_clauses.append("t.category_id = ?")
-        params.append(int(category_filter))
-
-    if shared_only:
-        where_clauses.append("t.shared_with_manager = 1")
-
-    if favorite_only:
-        where_clauses.append("t.favorite = 1")
-
-    for tag in _parse_tags(tag_filter):
-        where_clauses.append(
-            """
-            EXISTS (
-                SELECT 1
-                FROM ticket_tags tt_filter
-                JOIN tags tg_filter ON tg_filter.id = tt_filter.tag_id
-                WHERE tt_filter.ticket_id = t.id
-                  AND LOWER(tg_filter.name) = LOWER(?)
-            )
-            """
-        )
-        params.append(tag)
+    where_clauses, params, filter_state = _build_ticket_filters(request.args)
 
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
@@ -257,11 +296,7 @@ def index() -> str:
         categories=categories,
         sort_by=sort_by,
         order=order,
-        description_search=description_search,
-        category_filter=category_filter,
-        shared_only=shared_only,
-        favorite_only=favorite_only,
-        tag_filter=tag_filter,
+        **filter_state,
         ticket_to_edit=ticket_to_edit,
         today_date=date.today().isoformat(),
     )
@@ -269,42 +304,7 @@ def index() -> str:
 
 @app.route("/tickets/export", methods=["GET"])
 def export_tickets() -> Response:
-    description_search = request.args.get("q", "").strip()
-    category_filter = request.args.get("category_id", "").strip()
-    shared_only = request.args.get("shared_only", "0") == "1"
-    favorite_only = request.args.get("favorite_only", "0") == "1"
-    tag_filter = request.args.get("tags", "").strip()
-
-    where_clauses: list[str] = []
-    params: list[Any] = []
-
-    if description_search:
-        where_clauses.append("LOWER(t.description) LIKE ?")
-        params.append(f"%{description_search.lower()}%")
-
-    if category_filter.isdigit():
-        where_clauses.append("t.category_id = ?")
-        params.append(int(category_filter))
-
-    if shared_only:
-        where_clauses.append("t.shared_with_manager = 1")
-
-    if favorite_only:
-        where_clauses.append("t.favorite = 1")
-
-    for tag in _parse_tags(tag_filter):
-        where_clauses.append(
-            """
-            EXISTS (
-                SELECT 1
-                FROM ticket_tags tt_filter
-                JOIN tags tg_filter ON tg_filter.id = tt_filter.tag_id
-                WHERE tt_filter.ticket_id = t.id
-                  AND LOWER(tg_filter.name) = LOWER(?)
-            )
-            """
-        )
-        params.append(tag)
+    where_clauses, params, _ = _build_ticket_filters(request.args)
 
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 

@@ -53,7 +53,7 @@
     .sort-links a { margin-right: 0.6rem; }
     .muted { color: #666; font-size: 0.9rem; }
     .controls { margin: 1rem 0; }
-    .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto auto; gap: 0.5rem; align-items: center; }
+    .controls form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto; gap: 0.5rem; align-items: center; }
     .controls label { margin: 0; font-weight: normal; }
     .ticket-link-cell,
     .analysis-cell,
@@ -253,6 +253,10 @@
 
       <input id="tags_filter" name="tags" type="text" placeholder="Filter by tags (comma separated)" value="{{ tag_filter }}" />
 
+      <input id="date_from" name="date_from" type="date" value="{{ date_from }}" aria-label="From date" />
+
+      <input id="date_to" name="date_to" type="date" value="{{ date_to }}" aria-label="To date" />
+
       <button class="btn" type="submit">Apply</button>
       <button class="btn secondary" type="submit" formaction="{{ url_for('export_tickets') }}" formmethod="get">Export CSV</button>
     </form>
@@ -318,6 +322,8 @@
               <input type="hidden" name="shared_only" value="{{ 1 if shared_only else 0 }}" />
               <input type="hidden" name="favorite_only" value="{{ 1 if favorite_only else 0 }}" />
               <input type="hidden" name="tags" value="{{ tag_filter }}" />
+              <input type="hidden" name="date_from" value="{{ date_from }}" />
+              <input type="hidden" name="date_to" value="{{ date_to }}" />
               <button class="btn secondary" type="submit">Edit</button>
             </form>
             <form action="{{ url_for('delete_ticket', ticket_id=ticket['id']) }}" method="post">
