@@ -6,44 +6,73 @@
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
   <title>Quick Add Ticket</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 720px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-      line-height: 1.4;
+    :root {
+      --bg: #050816;
+      --panel: rgba(15, 23, 42, 0.9);
+      --panel-border: rgba(148, 163, 184, 0.3);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --primary: #22d3ee;
+      --success: #34d399;
+      --error: #f87171;
     }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
+      max-width: 760px;
+      margin: 1.5rem auto;
+      padding: 0 1rem;
+      line-height: 1.45;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.22), transparent 35%),
+        linear-gradient(145deg, #020617, var(--bg));
+      min-height: 100vh;
+    }
+
+    h1 { margin-bottom: 0.4rem; }
+    p { color: var(--muted); margin-top: 0; }
 
     form {
       display: grid;
       gap: 0.75rem;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
       padding: 1rem;
-      background: #fafafa;
+      background: var(--panel);
+      box-shadow: 0 20px 40px rgba(2, 6, 23, 0.45);
     }
 
-    label {
-      font-weight: 600;
-    }
+    label { font-weight: 600; color: #cbd5e1; }
 
     input,
     select,
     textarea,
     button {
       font: inherit;
-      padding: 0.5rem;
+      padding: 0.6rem 0.72rem;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: var(--text);
+      background: rgba(15, 23, 42, 0.85);
     }
 
-    textarea {
-      min-height: 5rem;
-      resize: vertical;
+    textarea { min-height: 5rem; resize: vertical; }
+
+    button {
+      background: linear-gradient(145deg, #67e8f9, var(--primary));
+      color: #06202a;
+      font-weight: 700;
+      cursor: pointer;
+      border: 0;
     }
 
     .tag-editor {
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      background: #fff;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.85);
       padding: 0.35rem;
       display: flex;
       flex-wrap: wrap;
@@ -57,14 +86,15 @@
       min-width: 180px;
       flex: 1;
       padding: 0.35rem;
+      background: transparent;
     }
 
     .tag-bubble {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      background: #e8f0fe;
-      color: #113a8f;
+      background: rgba(34, 211, 238, 0.16);
+      color: #67e8f9;
       border-radius: 999px;
       padding: 0.2rem 0.55rem;
       font-size: 0.9rem;
@@ -81,27 +111,26 @@
       font-size: 1rem;
     }
 
-    .inline {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 400;
-    }
+    .inline { display: flex; align-items: center; gap: 0.5rem; font-weight: 400; }
 
     .message {
       padding: 0.75rem;
-      border-radius: 6px;
+      border-radius: 10px;
       margin-bottom: 1rem;
+      border: 1px solid transparent;
+      backdrop-filter: blur(8px);
     }
 
     .success {
-      background: #e7f8ec;
-      border: 1px solid #70bd84;
+      background: rgba(52, 211, 153, 0.1);
+      border-color: rgba(52, 211, 153, 0.5);
+      color: #a7f3d0;
     }
 
     .error {
-      background: #fdecea;
-      border: 1px solid #da7b73;
+      background: rgba(248, 113, 113, 0.1);
+      border-color: rgba(248, 113, 113, 0.5);
+      color: #fecaca;
     }
   </style>
 </head>
