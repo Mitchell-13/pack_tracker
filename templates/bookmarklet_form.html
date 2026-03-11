@@ -19,6 +19,13 @@
 
     * { box-sizing: border-box; }
 
+    html {
+      background:
+        radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.22), transparent 35%),
+        linear-gradient(145deg, #020617, var(--bg));
+      background-attachment: fixed;
+    }
+
     body {
       font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
       max-width: 760px;
@@ -30,6 +37,7 @@
         radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.22), transparent 35%),
         linear-gradient(145deg, #020617, var(--bg));
       min-height: 100vh;
+      background-attachment: fixed;
     }
 
     h1 { margin-bottom: 0.4rem; }
