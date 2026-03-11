@@ -135,7 +135,7 @@ def _validated_filter_date(raw_date: str) -> str:
     return normalized_date
 
 
-def _ticket_link_label(link: str) -> str:
+def _entry_link_label(link: str) -> str:
     parsed_link = urlparse(link)
     host = parsed_link.netloc.lower()
     path = parsed_link.path.strip("/")
@@ -175,7 +175,7 @@ def _get_or_create_category_id(db: sqlite3.Connection, category_id: str, new_cat
     return str(category_row["id"])
 
 
-def _build_ticket_filters(args: Any) -> tuple[list[str], list[Any], dict[str, Any]]:
+def _build_entry_filters(args: Any) -> tuple[list[str], list[Any], dict[str, Any]]:
     description_search = args.get("q", "").strip()
     category_filter = args.get("category_id", "").strip()
     shared_only = args.get("shared_only", "0") == "1"
@@ -235,11 +235,11 @@ def _build_ticket_filters(args: Any) -> tuple[list[str], list[Any], dict[str, An
     return where_clauses, params, filter_state
 
 
-def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, int, list[str]] | None:
+def _validated_entry_fields(form: Any) -> tuple[str, str, str, str, str, int, int, list[str]] | None:
     link = form.get("link", "").strip()
     category_id = form.get("category_id", "").strip()
     description = form.get("description", "").strip()
-    ai_analysis = form.get("ai_analysis", "")
+    notes = form.get("ai_analysis", "")
     date_value = form.get("date", "").strip()
     shared_with_manager = 1 if form.get("shared_with_manager") == "on" else 0
     favorite = 1 if form.get("favorite") == "on" else 0
@@ -257,7 +257,7 @@ def _validated_ticket_fields(form: Any) -> tuple[str, str, str, str, str, int, i
         link,
         category_id,
         description,
-        ai_analysis,
+        notes,
         date_value,
         shared_with_manager,
         favorite,
@@ -279,7 +279,7 @@ def index() -> str:
     sort_column = allowed_sort.get(sort_by, "t.date")
     sort_order = "ASC" if order == "asc" else "DESC"
 
-    where_clauses, params, filter_state = _build_ticket_filters(request.args)
+    where_clauses, params, filter_state = _build_entry_filters(request.args)
 
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
@@ -287,7 +287,7 @@ def index() -> str:
     ticket_rows = db.execute(
         f"""
         SELECT t.id, t.link, c.name AS category, t.description, t.date,
-               t.ai_analysis, t.shared_with_manager, t.favorite,
+               t.ai_analysis AS notes, t.shared_with_manager, t.favorite,
                COALESCE(GROUP_CONCAT(tg.name, ', '), '') AS tags
         FROM tickets t
         JOIN categories c ON t.category_id = c.id
@@ -304,7 +304,7 @@ def index() -> str:
     for ticket in ticket_rows:
         ticket_dict = dict(ticket)
         ticket_dict["display_date"] = _human_readable_date(ticket_dict["date"])
-        ticket_dict["link_label"] = _ticket_link_label(ticket_dict["link"])
+        ticket_dict["link_label"] = _entry_link_label(ticket_dict["link"])
         tickets.append(ticket_dict)
 
     categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
@@ -313,7 +313,7 @@ def index() -> str:
     if edit_id.isdigit():
         ticket_to_edit = db.execute(
             """
-            SELECT id, link, category_id, description, ai_analysis, date, shared_with_manager, favorite
+            SELECT id, link, category_id, description, ai_analysis AS notes, date, shared_with_manager, favorite
             FROM tickets
             WHERE id = ?
             """,
@@ -347,7 +347,7 @@ def index() -> str:
 
 @app.route("/tickets/export", methods=["GET"])
 def export_tickets() -> Response:
-    where_clauses, params, _ = _build_ticket_filters(request.args)
+    where_clauses, params, _ = _build_entry_filters(request.args)
 
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
@@ -359,7 +359,7 @@ def export_tickets() -> Response:
                t.category_id,
                c.name AS category,
                t.description,
-               t.ai_analysis,
+               t.ai_analysis AS notes,
                t.date,
                t.shared_with_manager,
                t.favorite,
@@ -384,7 +384,7 @@ def export_tickets() -> Response:
             "category_id",
             "category",
             "description",
-            "ai_analysis",
+            "notes",
             "date",
             "shared_with_manager",
             "favorite",
@@ -400,7 +400,7 @@ def export_tickets() -> Response:
                 ticket["category_id"],
                 ticket["category"],
                 ticket["description"],
-                ticket["ai_analysis"],
+                ticket["notes"],
                 ticket["date"],
                 ticket["shared_with_manager"],
                 ticket["favorite"],
@@ -420,11 +420,11 @@ def export_tickets() -> Response:
 
 @app.route("/tickets", methods=["POST"])
 def add_ticket() -> Any:
-    ticket_fields = _validated_ticket_fields(request.form)
-    if ticket_fields is None:
+    entry_fields = _validated_entry_fields(request.form)
+    if entry_fields is None:
         return redirect(url_for("index"))
 
-    link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, tags = ticket_fields
+    link, category_id, description, notes, date_value, shared_with_manager, favorite, tags = entry_fields
 
     db = get_db()
     cursor = db.execute(
@@ -432,7 +432,7 @@ def add_ticket() -> Any:
         INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite),
+        (link, category_id, description, notes, date_value, shared_with_manager, favorite),
     )
     _sync_ticket_tags(db, cursor.lastrowid, tags)
     db.commit()
@@ -455,7 +455,7 @@ def bookmarklet_add_ticket() -> str:
             form_values={
                 "link": link,
                 "description": "",
-                "ai_analysis": "",
+                "notes": "",
                 "tags": "",
                 "date": date.today().isoformat(),
                 "category_id": "",
@@ -473,11 +473,11 @@ def bookmarklet_add_ticket() -> str:
     submitted_form = request.form.copy()
     submitted_form["category_id"] = selected_category_id
 
-    ticket_fields = _validated_ticket_fields(submitted_form)
+    entry_fields = _validated_entry_fields(submitted_form)
     form_values = {
         "link": request.form.get("link", "").strip(),
         "description": request.form.get("description", "").strip(),
-        "ai_analysis": request.form.get("ai_analysis", ""),
+        "notes": request.form.get("ai_analysis", ""),
         "tags": request.form.get("tags", ""),
         "date": request.form.get("date", "").strip(),
         "category_id": selected_category_id,
@@ -486,7 +486,7 @@ def bookmarklet_add_ticket() -> str:
         "favorite": request.form.get("favorite") == "on",
     }
 
-    if ticket_fields is None:
+    if entry_fields is None:
         categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
         return render_template(
             "bookmarklet_form.html",
@@ -497,13 +497,13 @@ def bookmarklet_add_ticket() -> str:
             form_values=form_values,
         )
 
-    link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, tags = ticket_fields
+    link, category_id, description, notes, date_value, shared_with_manager, favorite, tags = entry_fields
     cursor = db.execute(
         """
         INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite),
+        (link, category_id, description, notes, date_value, shared_with_manager, favorite),
     )
     _sync_ticket_tags(db, cursor.lastrowid, tags)
     db.commit()
@@ -511,7 +511,7 @@ def bookmarklet_add_ticket() -> str:
     form_values.update(
         {
             "description": "",
-            "ai_analysis": "",
+            "notes": "",
             "tags": "",
             "new_category_name": "",
             "shared_with_manager": False,
@@ -531,11 +531,11 @@ def bookmarklet_add_ticket() -> str:
 
 @app.route("/tickets/<int:ticket_id>/edit", methods=["POST"])
 def edit_ticket(ticket_id: int) -> Any:
-    ticket_fields = _validated_ticket_fields(request.form)
-    if ticket_fields is None:
+    entry_fields = _validated_entry_fields(request.form)
+    if entry_fields is None:
         return redirect(url_for("index", edit_id=ticket_id))
 
-    link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, tags = ticket_fields
+    link, category_id, description, notes, date_value, shared_with_manager, favorite, tags = entry_fields
 
     db = get_db()
     db.execute(
@@ -550,7 +550,7 @@ def edit_ticket(ticket_id: int) -> Any:
             favorite = ?
         WHERE id = ?
         """,
-        (link, category_id, description, ai_analysis, date_value, shared_with_manager, favorite, ticket_id),
+        (link, category_id, description, notes, date_value, shared_with_manager, favorite, ticket_id),
     )
     _sync_ticket_tags(db, ticket_id, tags)
     db.commit()

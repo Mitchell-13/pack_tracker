@@ -135,11 +135,11 @@
   </style>
 </head>
 <body>
-  <h1>Quick Add Ticket</h1>
-  <p>This form is intended for bookmarklet usage. It pre-fills the current page URL as the ticket link.</p>
+  <h1>Quick Add Entry</h1>
+  <p>This form is intended for bookmarklet usage. It pre-fills the current page URL as the entry link.</p>
 
   {% if success %}
-    <div class="message success">Ticket saved successfully. This window will close automatically.</div>
+    <div class="message success">Entry saved successfully. This window will close automatically.</div>
   {% endif %}
 
   {% if error %}
@@ -147,7 +147,7 @@
   {% endif %}
 
   <form method="post" action="{{ url_for('bookmarklet_add_ticket') }}">
-    <label for="link">Ticket Link</label>
+    <label for="link">Entry Link</label>
     <input id="link" name="link" type="url" value="{{ form_values['link'] }}" required />
 
     <label for="category_id">Category</label>
@@ -173,7 +173,7 @@
     <textarea id="description" name="description" required>{{ form_values['description'] }}</textarea>
 
     <label for="ai_analysis">Notes</label>
-    <textarea id="ai_analysis" name="ai_analysis">{{ form_values['ai_analysis'] }}</textarea>
+    <textarea id="ai_analysis" name="ai_analysis">{{ form_values['notes'] }}</textarea>
 
     <label for="tags">Tags</label>
     <input id="tags" name="tags" type="hidden" value="{{ form_values['tags'] }}" />
@@ -194,7 +194,7 @@
       Favorite
     </label>
 
-    <button type="submit">Save Ticket</button>
+    <button type="submit">Save Entry</button>
   </form>
 
   <script>

@@ -80,7 +80,7 @@
     input::placeholder, textarea::placeholder { color: #64748b; }
     input:focus, select:focus, textarea:focus { outline: 2px solid rgba(56, 189, 248, 0.45); border-color: var(--primary); }
     textarea { min-height: 80px; resize: vertical; }
-    .analysis-input { min-height: 180px; }
+    .notes-input { min-height: 180px; }
 
     .inline { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
     .inline input { width: auto; accent-color: var(--primary); }
@@ -152,8 +152,8 @@
 
     .date-column { width: 120px; white-space: nowrap; }
     .manager-column, .favorite-column { width: 90px; text-align: center; }
-    .ticket-link-cell, .analysis-cell, .actions-cell { text-align: center; vertical-align: middle; }
-    .ticket-link-cell .btn, .analysis-cell .btn { min-width: 88px; text-align: center; }
+    .entry-link-cell, .notes-cell, .actions-cell { text-align: center; vertical-align: middle; }
+    .entry-link-cell .btn, .notes-cell .btn { min-width: 88px; text-align: center; }
 
     .actions { display: flex; gap: 0.5rem; align-items: center; justify-content: center; flex-wrap: wrap; }
     .actions a { text-decoration: none; }
@@ -291,7 +291,7 @@
       <textarea id="description" name="description" required></textarea>
 
       <label for="ai_analysis">Notes</label>
-      <textarea id="ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Add notes"></textarea>
+      <textarea id="ai_analysis" class="notes-input" name="ai_analysis" placeholder="Add notes"></textarea>
 
       <label for="tags">Tags</label>
       <input id="tags" name="tags" type="hidden" />
@@ -336,7 +336,7 @@
     <textarea id="edit_description" name="description" required>{{ ticket_to_edit['description'] }}</textarea>
 
     <label for="edit_ai_analysis">Notes</label>
-    <textarea id="edit_ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Add notes">{{ ticket_to_edit['ai_analysis'] }}</textarea>
+    <textarea id="edit_ai_analysis" class="notes-input" name="ai_analysis" placeholder="Add notes">{{ ticket_to_edit['notes'] }}</textarea>
 
     <label for="edit_tags">Tags</label>
     <input id="edit_tags" name="tags" type="hidden" value="{{ ticket_to_edit['tags'] if ticket_to_edit else '' }}" />
@@ -421,18 +421,18 @@
     <tbody>
       {% for ticket in tickets %}
       <tr>
-        <td class="ticket-link-cell">
+        <td class="entry-link-cell">
           <a class="btn secondary" href="{{ ticket['link'] }}" target="_blank" rel="noopener">{{ ticket['link_label'] }}</a>
         </td>
         <td>{{ ticket['category'] }}</td>
         <td>{{ ticket['description'] }}</td>
         <td class="date-column">{{ ticket['display_date'] }}</td>
-        <td class="analysis-cell">
-          {% if ticket['ai_analysis'] %}
+        <td class="notes-cell">
+          {% if ticket['notes'] %}
             <button
               type="button"
               class="btn secondary"
-              data-notes="{{ ticket['ai_analysis']|e }}"
+              data-notes="{{ ticket['notes']|e }}"
             >
               Notes
             </button>
@@ -482,13 +482,13 @@
     </tbody>
   </table>
 
-  <div id="analysis-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="analysis-modal-title">
+  <div id="notes-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="notes-modal-title">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="analysis-modal-title">Notes</h3>
-        <button id="close-analysis-modal" type="button">Close</button>
+        <h3 id="notes-modal-title">Notes</h3>
+        <button id="close-notes-modal" type="button">Close</button>
       </div>
-      <div id="analysis-content" style="padding: 1rem; overflow: auto; white-space: pre-wrap; line-height: 1.45;"></div>
+      <div id="notes-content" style="padding: 1rem; overflow: auto; white-space: pre-wrap; line-height: 1.45;"></div>
     </div>
   </div>
 
@@ -509,29 +509,29 @@
   </div>
 
   <script>
-    const analysisModal = document.getElementById('analysis-modal');
-    const analysisContent = document.getElementById('analysis-content');
-    const closeAnalysisModalButton = document.getElementById('close-analysis-modal');
+    const notesModal = document.getElementById('notes-modal');
+    const notesContent = document.getElementById('notes-content');
+    const closeNotesModalButton = document.getElementById('close-notes-modal');
     const categoryModal = document.getElementById('category-modal');
     const openCategoryModalButton = document.getElementById('open-category-modal');
     const closeCategoryModalButton = document.getElementById('close-category-modal');
 
     document.querySelectorAll('[data-notes]').forEach((button) => {
       button.addEventListener('click', () => {
-        analysisContent.textContent = button.dataset.notes || '';
-        analysisModal.classList.remove('hidden');
+        notesContent.textContent = button.dataset.notes || '';
+        notesModal.classList.remove('hidden');
       });
     });
 
-    function closeAnalysisModal() {
-      analysisModal.classList.add('hidden');
-      analysisContent.textContent = '';
+    function closeNotesModal() {
+      notesModal.classList.add('hidden');
+      notesContent.textContent = '';
     }
 
-    closeAnalysisModalButton.addEventListener('click', closeAnalysisModal);
-    analysisModal.addEventListener('click', (event) => {
-      if (event.target === analysisModal) {
-        closeAnalysisModal();
+    closeNotesModalButton.addEventListener('click', closeNotesModal);
+    notesModal.addEventListener('click', (event) => {
+      if (event.target === notesModal) {
+        closeNotesModal();
       }
     });
 
@@ -555,8 +555,8 @@
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !analysisModal.classList.contains('hidden')) {
-        closeAnalysisModal();
+      if (event.key === 'Escape' && !notesModal.classList.contains('hidden')) {
+        closeNotesModal();
       }
       if (event.key === 'Escape' && !categoryModal.classList.contains('hidden')) {
         closeCategoryModal();
@@ -571,10 +571,6 @@
       }
 
       const tags = [];
-      const existingTags = (hiddenInput.value || '')
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag);
 
       function syncHiddenInput() {
         hiddenInput.value = tags.join(', ');
@@ -606,6 +602,12 @@
         syncHiddenInput();
       }
 
+      function setTags(rawTags) {
+        tags.length = 0;
+        parseTags(rawTags).forEach((tag) => tags.push(tag));
+        renderTags();
+      }
+
       function addTag(rawTag) {
         const tag = (rawTag || '').trim();
         if (!tag) {
@@ -626,7 +628,7 @@
         tagInput.value = '';
       }
 
-      existingTags.forEach((tag) => addTag(tag));
+      setTags(hiddenInput.value);
 
       tagInput.addEventListener('keydown', (event) => {
         if (event.key === 'Tab') {
@@ -646,7 +648,8 @@
 
       renderTags();
 
-      editor.refreshTagBubbles = renderTags;
+      editor.setTags = setTags;
+      editor.refreshTagBubbles = () => setTags(hiddenInput.value);
     }
 
     document.querySelectorAll('[data-tag-editor]').forEach((editor) => {
@@ -681,8 +684,8 @@
           selectedTags.push(clickedTag);
           tagsFilterInput.value = selectedTags.join(', ');
           const editor = document.querySelector('[data-tag-editor][data-hidden-input-id="tags_filter"]');
-          if (editor && typeof editor.refreshTagBubbles === "function") {
-            editor.refreshTagBubbles();
+          if (editor && typeof editor.setTags === "function") {
+            editor.setTags(selectedTags.join(', '));
           }
         }
 
