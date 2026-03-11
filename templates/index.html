@@ -252,6 +252,9 @@
     .tag-bubble.filter-tag { cursor: pointer; font-weight: 600; transition: background-color 0.1s ease-in-out; }
     .tag-bubble.filter-tag:hover { background: rgba(56, 189, 248, 0.24); }
     .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .category-manager-list { margin-top: 0.8rem; }
+    .category-manager-list .compact-form { border: 0; background: transparent; padding: 0; box-shadow: none; }
+    .category-manager-list .tag-bubble { cursor: pointer; }
 
     .small-modal-content {
       background: rgba(15, 23, 42, 0.96);
@@ -514,6 +517,25 @@
           <input id="name" name="name" type="text" placeholder="e.g. Investigation, Pack Support, Etc." required />
           <button type="submit">Add Category</button>
         </form>
+
+        <div class="category-manager-list">
+          <label>Delete Categories</label>
+          <div class="tag-list">
+            {% for category in categories %}
+              <form action="{{ url_for('delete_category', category_id=category['id']) }}" method="post" class="compact-form">
+                <button
+                  type="submit"
+                  class="tag-bubble"
+                  onclick="return confirm('Delete category {{ category['name']|e }}? This only works for unused categories.');"
+                >
+                  {{ category['name'] }} <span aria-hidden="true">×</span>
+                </button>
+              </form>
+            {% else %}
+              <span>—</span>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
   </div>
