@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
   <title>Pack Tracker</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --bg: #060913;
@@ -209,7 +208,6 @@
 
     .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid #dbe3f3; display: flex; justify-content: space-between; align-items: center; }
     .modal-header button { width: auto; color: #0f172a; background: #e2e8f0; border-color: #cbd5e1; }
-    .modal iframe { border: 0; width: 100%; flex: 1; background: white; }
 
     .field-with-button { display: flex; gap: 0.5rem; align-items: center; }
     .field-with-button select { flex: 1; }
@@ -292,8 +290,8 @@
       <label for="description">Description</label>
       <textarea id="description" name="description" required></textarea>
 
-      <label for="ai_analysis">AI Analysis (HTML)</label>
-      <textarea id="ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Paste raw HTML for AI analysis"></textarea>
+      <label for="ai_analysis">Notes</label>
+      <textarea id="ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Add notes"></textarea>
 
       <label for="tags">Tags</label>
       <input id="tags" name="tags" type="hidden" />
@@ -337,8 +335,8 @@
     <label for="edit_description">Description</label>
     <textarea id="edit_description" name="description" required>{{ ticket_to_edit['description'] }}</textarea>
 
-    <label for="edit_ai_analysis">AI Analysis (HTML)</label>
-    <textarea id="edit_ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Paste raw HTML for AI analysis">{{ ticket_to_edit['ai_analysis'] }}</textarea>
+    <label for="edit_ai_analysis">Notes</label>
+    <textarea id="edit_ai_analysis" class="analysis-input" name="ai_analysis" placeholder="Add notes">{{ ticket_to_edit['ai_analysis'] }}</textarea>
 
     <label for="edit_tags">Tags</label>
     <input id="edit_tags" name="tags" type="hidden" value="{{ ticket_to_edit['tags'] if ticket_to_edit else '' }}" />
@@ -410,7 +408,7 @@
         <th>Category</th>
         <th>Description</th>
         <th class="date-column">Date</th>
-        <th>AI Analysis</th>
+        <th>Notes</th>
         <th>Tags</th>
         <th class="manager-column">Shared with Manager</th>
         <th class="favorite-column">Favorite</th>
@@ -431,9 +429,9 @@
             <button
               type="button"
               class="btn secondary"
-              data-analysis-html="{{ ticket['ai_analysis']|e }}"
+              data-notes="{{ ticket['ai_analysis']|e }}"
             >
-              Analysis
+              Notes
             </button>
           {% else %}
             —
@@ -484,10 +482,10 @@
   <div id="analysis-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="analysis-modal-title">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="analysis-modal-title">AI Analysis</h3>
+        <h3 id="analysis-modal-title">Notes</h3>
         <button id="close-analysis-modal" type="button">Close</button>
       </div>
-      <iframe id="analysis-frame" title="AI analysis HTML preview"></iframe>
+      <div id="analysis-content" style="padding: 1rem; overflow: auto; white-space: pre-wrap; line-height: 1.45;"></div>
     </div>
   </div>
 
@@ -509,81 +507,22 @@
 
   <script>
     const analysisModal = document.getElementById('analysis-modal');
-    const analysisFrame = document.getElementById('analysis-frame');
+    const analysisContent = document.getElementById('analysis-content');
     const closeAnalysisModalButton = document.getElementById('close-analysis-modal');
     const categoryModal = document.getElementById('category-modal');
     const openCategoryModalButton = document.getElementById('open-category-modal');
     const closeCategoryModalButton = document.getElementById('close-category-modal');
 
-    function renderMixedAnalysis(rawAnalysis) {
-      const raw = (rawAnalysis || '').trim();
-      if (!raw) {
-        return '';
-      }
-
-      const lowerRaw = raw.toLowerCase();
-      const htmlStart = lowerRaw.indexOf('<html');
-      const htmlEnd = lowerRaw.lastIndexOf('</html>');
-
-      function normalizeMarkdown(rawMarkdown) {
-        let normalized = (rawMarkdown || '').trim();
-        if (!normalized) {
-          return '';
-        }
-
-        const fencedBlockMatch = normalized.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/i);
-        if (fencedBlockMatch) {
-          normalized = fencedBlockMatch[1].trim();
-        }
-
-        const lines = normalized.split('\n');
-        const indentedLines = lines
-          .filter((line) => line.trim())
-          .map((line) => line.match(/^\s*/)[0].length);
-        const commonIndent = indentedLines.length ? Math.min(...indentedLines) : 0;
-
-        if (commonIndent >= 2) {
-          normalized = lines.map((line) => line.slice(commonIndent)).join('\n');
-        }
-
-        return normalized;
-      }
-
-      if (htmlStart !== -1 && htmlEnd !== -1 && htmlEnd > htmlStart) {
-        const htmlDocument = raw.slice(htmlStart, htmlEnd + 7);
-        const trailingMarkdown = normalizeMarkdown(raw.slice(htmlEnd + 7));
-
-        if (!trailingMarkdown) {
-          return htmlDocument;
-        }
-
-        const renderedMarkdown = marked.parse(trailingMarkdown);
-        const markdownSection = `\n<section style="margin: 2rem; padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; font-family: Arial, sans-serif;">\n<h2 style="margin-top: 0;">Additional AI Notes</h2>\n${renderedMarkdown}\n</section>\n`;
-
-        if (htmlDocument.toLowerCase().includes('</body>')) {
-          return htmlDocument.replace(/<\/body>/i, `${markdownSection}</body>`);
-        }
-
-        return `${htmlDocument}${markdownSection}`;
-      }
-
-      if (raw.includes('<') && raw.includes('>')) {
-        return raw;
-      }
-
-      return `<!doctype html><html><head><meta charset="utf-8" /><title>AI Analysis</title></head><body style="font-family: Arial, sans-serif; padding: 1.25rem;">${marked.parse(normalizeMarkdown(raw))}</body></html>`;
-    }
-
-    document.querySelectorAll('[data-analysis-html]').forEach((button) => {
+    document.querySelectorAll('[data-notes]').forEach((button) => {
       button.addEventListener('click', () => {
-        analysisFrame.srcdoc = renderMixedAnalysis(button.dataset.analysisHtml);
+        analysisContent.textContent = button.dataset.notes || '';
         analysisModal.classList.remove('hidden');
       });
     });
 
     function closeAnalysisModal() {
       analysisModal.classList.add('hidden');
-      analysisFrame.srcdoc = '';
+      analysisContent.textContent = '';
     }
 
     closeAnalysisModalButton.addEventListener('click', closeAnalysisModal);
