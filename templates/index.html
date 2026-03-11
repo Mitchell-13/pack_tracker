@@ -23,6 +23,14 @@
 
     * { box-sizing: border-box; }
 
+    html {
+      background:
+        radial-gradient(circle at 10% 15%, rgba(56, 189, 248, 0.2), transparent 40%),
+        radial-gradient(circle at 90% 5%, rgba(20, 184, 166, 0.15), transparent 35%),
+        linear-gradient(140deg, var(--bg) 0%, var(--bg-alt) 100%);
+      background-attachment: fixed;
+    }
+
     body {
       font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
       margin: 0;
@@ -33,6 +41,7 @@
         radial-gradient(circle at 90% 5%, rgba(20, 184, 166, 0.15), transparent 35%),
         linear-gradient(140deg, var(--bg) 0%, var(--bg-alt) 100%);
       min-height: 100vh;
+      background-attachment: fixed;
     }
 
     h1 {
