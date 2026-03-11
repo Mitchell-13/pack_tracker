@@ -195,19 +195,29 @@
     }
 
     .modal-content {
-      background: #f8fafc;
-      color: #0f172a;
+      background: rgba(15, 23, 42, 0.96);
+      color: var(--text);
+      border: 1px solid var(--panel-border);
       border-radius: 12px;
       width: min(98vw, 1500px);
       height: min(95vh, 1050px);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 20px 48px rgba(15, 23, 42, 0.4);
+      box-shadow: var(--shadow);
     }
 
-    .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid #dbe3f3; display: flex; justify-content: space-between; align-items: center; }
-    .modal-header button { width: auto; color: #0f172a; background: #e2e8f0; border-color: #cbd5e1; }
+    .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { margin: 0; color: #dbeafe; }
+    .modal-header button { width: auto; color: #7dd3fc; background: rgba(15, 23, 42, 0.78); border-color: rgba(125, 211, 252, 0.35); }
+
+    .notes-modal-body {
+      padding: 1rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      color: #dbeafe;
+    }
 
     .field-with-button { display: flex; gap: 0.5rem; align-items: center; }
     .field-with-button select { flex: 1; }
@@ -390,7 +400,7 @@
       </label>
 
       <input id="tags_filter" name="tags" type="hidden" value="{{ tag_filter }}" />
-      <div class="tag-editor" data-tag-editor data-hidden-input-id="tags_filter">
+      <div class="tag-editor" data-tag-editor data-hidden-input-id="tags_filter" data-auto-submit-on-remove="true">
         <input type="text" placeholder="Filter by tag" data-tag-input />
       </div>
 
@@ -488,7 +498,7 @@
         <h3 id="notes-modal-title">Notes</h3>
         <button id="close-notes-modal" type="button">Close</button>
       </div>
-      <div id="notes-content" style="padding: 1rem; overflow: auto; white-space: pre-wrap; line-height: 1.45;"></div>
+      <div id="notes-content" class="notes-modal-body"></div>
     </div>
   </div>
 
@@ -563,6 +573,9 @@
       }
     });
 
+    const filterForm = document.querySelector('.controls form');
+    const tagsFilterInput = document.getElementById('tags_filter');
+
     function initializeTagEditor(editor) {
       const hiddenInput = document.getElementById(editor.dataset.hiddenInputId);
       const tagInput = editor.querySelector('[data-tag-input]');
@@ -579,6 +592,10 @@
       function removeTag(indexToRemove) {
         tags.splice(indexToRemove, 1);
         renderTags();
+
+        if (editor.dataset.autoSubmitOnRemove === 'true' && filterForm) {
+          filterForm.requestSubmit();
+        }
       }
 
       function renderTags() {
@@ -655,9 +672,6 @@
     document.querySelectorAll('[data-tag-editor]').forEach((editor) => {
       initializeTagEditor(editor);
     });
-
-    const filterForm = document.querySelector('.controls form');
-    const tagsFilterInput = document.getElementById('tags_filter');
 
     function parseTags(rawTags) {
       return (rawTags || '')
