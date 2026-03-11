@@ -151,7 +151,7 @@ def _ticket_link_label(link: str) -> str:
         if match:
             return f"{match.group(1).upper()} {match.group(2)}"
 
-    return "Ticket"
+    return "Link"
 
 
 def _get_or_create_category_id(db: sqlite3.Connection, category_id: str, new_category_name: str) -> str:
