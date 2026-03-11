@@ -398,6 +398,7 @@
       <input id="date_to" name="date_to" type="date" value="{{ date_to }}" aria-label="To date" />
 
       <button class="btn" type="submit">Apply</button>
+      <a class="btn secondary" href="{{ url_for('index') }}">Clear all filters</a>
       <button class="btn secondary" type="submit" formaction="{{ url_for('export_tickets') }}" formmethod="get">Export CSV</button>
     </form>
   </div>
