@@ -578,6 +578,21 @@ def add_category() -> Any:
     return redirect(url_for("index"))
 
 
+@app.route("/categories/<int:category_id>/delete", methods=["POST"])
+def delete_category(category_id: int) -> Any:
+    db = get_db()
+    linked_ticket = db.execute(
+        "SELECT 1 FROM tickets WHERE category_id = ? LIMIT 1",
+        (category_id,),
+    ).fetchone()
+    if linked_ticket is not None:
+        return redirect(url_for("index"))
+
+    db.execute("DELETE FROM categories WHERE id = ?", (category_id,))
+    db.commit()
+    return redirect(url_for("index"))
+
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True, host="0.0.0.0", port=5000)
