@@ -27,7 +27,7 @@ This project includes `static/bookmarklet.js`, which opens a quick-add form and 
 2. Create a browser bookmark with this URL (single line):
 
 ```text
-javascript:(function(){var s=document.createElement('script');s.src='http://127.0.0.1:5000/static/bookmarklet.js';document.body.appendChild(s);}());
+javascript: (function () {  const configuredBaseUrl = window.PACKTracker_BASE_URL || "http://127.0.0.1:5000";  let targetUrl;  try {    targetUrl = new URL("/bookmarklet/new", configuredBaseUrl);  } catch (error) {    alert("PackTracker bookmarklet is misconfigured. Set a valid PACKTracker_BASE_URL.");    return;  }  targetUrl.searchParams.set("link", window.location.href);  const popup = window.open(targetUrl.toString(), "packTracker-bookmarklet", "width=900,height=820,resizable=yes,scrollbars=yes");  if (!popup) {    window.location.href = targetUrl.toString();  }})();
 ```
 
 3. While viewing a webpage, click the bookmark.
