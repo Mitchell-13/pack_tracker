@@ -389,7 +389,10 @@
         Favorites only
       </label>
 
-      <input id="tags_filter" name="tags" type="text" placeholder="Filter by tags (comma separated)" value="{{ tag_filter }}" />
+      <input id="tags_filter" name="tags" type="hidden" value="{{ tag_filter }}" />
+      <div class="tag-editor" data-tag-editor data-hidden-input-id="tags_filter">
+        <input type="text" placeholder="Filter by tag" data-tag-input />
+      </div>
 
       <input id="date_from" name="date_from" type="date" value="{{ date_from }}" aria-label="From date" />
 
@@ -419,7 +422,7 @@
       {% for ticket in tickets %}
       <tr>
         <td class="ticket-link-cell">
-          <a class="btn secondary" href="{{ ticket['link'] }}" target="_blank" rel="noopener">Ticket</a>
+          <a class="btn secondary" href="{{ ticket['link'] }}" target="_blank" rel="noopener">{{ ticket['link_label'] }}</a>
         </td>
         <td>{{ ticket['category'] }}</td>
         <td>{{ ticket['description'] }}</td>
@@ -642,6 +645,8 @@
       });
 
       renderTags();
+
+      editor.refreshTagBubbles = renderTags;
     }
 
     document.querySelectorAll('[data-tag-editor]').forEach((editor) => {
@@ -675,6 +680,10 @@
         if (!isAlreadySelected) {
           selectedTags.push(clickedTag);
           tagsFilterInput.value = selectedTags.join(', ');
+          const editor = document.querySelector('[data-tag-editor][data-hidden-input-id="tags_filter"]');
+          if (editor && typeof editor.refreshTagBubbles === "function") {
+            editor.refreshTagBubbles();
+          }
         }
 
         filterForm.requestSubmit();

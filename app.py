@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import sqlite3
 import csv
+import re
 from io import StringIO
 from datetime import datetime, date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from flask import Flask, Response, g, redirect, render_template, request, url_for
 
@@ -131,6 +133,46 @@ def _validated_filter_date(raw_date: str) -> str:
         return ""
 
     return normalized_date
+
+
+def _ticket_link_label(link: str) -> str:
+    parsed_link = urlparse(link)
+    host = parsed_link.netloc.lower()
+    path = parsed_link.path.strip("/")
+
+    if "zendesk" in host:
+        match = re.search(r"/tickets/(\d+)", parsed_link.path, re.IGNORECASE)
+        if match:
+            return f"ZD {match.group(1)}"
+
+    if "atlassian" in host:
+        ticket_key = path.rsplit("/", maxsplit=1)[-1]
+        match = re.fullmatch(r"([A-Za-z]+)-(\d+)", ticket_key)
+        if match:
+            return f"{match.group(1).upper()} {match.group(2)}"
+
+    return "Ticket"
+
+
+def _get_or_create_category_id(db: sqlite3.Connection, category_id: str, new_category_name: str) -> str:
+    normalized_category_id = category_id.strip()
+    normalized_new_category = new_category_name.strip()
+
+    if normalized_category_id:
+        return normalized_category_id
+
+    if not normalized_new_category:
+        return ""
+
+    db.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (normalized_new_category,))
+    category_row = db.execute(
+        "SELECT id FROM categories WHERE LOWER(name) = LOWER(?)",
+        (normalized_new_category,),
+    ).fetchone()
+    if category_row is None:
+        return ""
+
+    return str(category_row["id"])
 
 
 def _build_ticket_filters(args: Any) -> tuple[list[str], list[Any], dict[str, Any]]:
@@ -262,6 +304,7 @@ def index() -> str:
     for ticket in ticket_rows:
         ticket_dict = dict(ticket)
         ticket_dict["display_date"] = _human_readable_date(ticket_dict["date"])
+        ticket_dict["link_label"] = _ticket_link_label(ticket_dict["link"])
         tickets.append(ticket_dict)
 
     categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
@@ -416,24 +459,35 @@ def bookmarklet_add_ticket() -> str:
                 "tags": "",
                 "date": date.today().isoformat(),
                 "category_id": "",
+                "new_category_name": "",
                 "shared_with_manager": False,
                 "favorite": False,
             },
         )
 
-    ticket_fields = _validated_ticket_fields(request.form)
+    selected_category_id = _get_or_create_category_id(
+        db,
+        request.form.get("category_id", ""),
+        request.form.get("new_category_name", ""),
+    )
+    submitted_form = request.form.copy()
+    submitted_form["category_id"] = selected_category_id
+
+    ticket_fields = _validated_ticket_fields(submitted_form)
     form_values = {
         "link": request.form.get("link", "").strip(),
         "description": request.form.get("description", "").strip(),
         "ai_analysis": request.form.get("ai_analysis", ""),
         "tags": request.form.get("tags", ""),
         "date": request.form.get("date", "").strip(),
-        "category_id": request.form.get("category_id", "").strip(),
+        "category_id": selected_category_id,
+        "new_category_name": request.form.get("new_category_name", "").strip(),
         "shared_with_manager": request.form.get("shared_with_manager") == "on",
         "favorite": request.form.get("favorite") == "on",
     }
 
     if ticket_fields is None:
+        categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
         return render_template(
             "bookmarklet_form.html",
             categories=categories,
@@ -459,10 +513,12 @@ def bookmarklet_add_ticket() -> str:
             "description": "",
             "ai_analysis": "",
             "tags": "",
+            "new_category_name": "",
             "shared_with_manager": False,
             "favorite": False,
         }
     )
+    categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
     return render_template(
         "bookmarklet_form.html",
         categories=categories,

@@ -151,7 +151,7 @@
     <input id="link" name="link" type="url" value="{{ form_values['link'] }}" required />
 
     <label for="category_id">Category</label>
-    <select id="category_id" name="category_id" required>
+    <select id="category_id" name="category_id">
       <option value="">Select category</option>
       {% for category in categories %}
         <option value="{{ category['id'] }}" {% if form_values['category_id'] == category['id']|string %}selected{% endif %}>
@@ -159,6 +159,15 @@
         </option>
       {% endfor %}
     </select>
+
+    <label for="new_category_name">Or add new category</label>
+    <input
+      id="new_category_name"
+      name="new_category_name"
+      type="text"
+      placeholder="e.g. Investigation"
+      value="{{ form_values.get('new_category_name', '') }}"
+    />
 
     <label for="description">Description</label>
     <textarea id="description" name="description" required>{{ form_values['description'] }}</textarea>
