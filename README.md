@@ -1,12 +1,12 @@
 # Pack Tracker
 
-Simple Flask app for tracking tickets with:
-- ticket link
+Simple Flask app for tracking entries with:
+- entry link
 - category (with custom category creation)
 - description
 - date
 - description search
-- filters for favorite tickets
+- filters for favorite entries
 
 ## Run
 
