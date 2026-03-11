@@ -275,6 +275,14 @@ def index() -> str:
     sort_by = request.args.get("sort_by", "date")
     order = request.args.get("order", "desc")
     edit_id = request.args.get("edit_id", "").strip()
+    page_value = request.args.get("page", "1").strip()
+
+    try:
+        page = max(1, int(page_value))
+    except ValueError:
+        page = 1
+
+    per_page = 25
 
     allowed_sort = {"date": "t.date", "category": "c.name"}
     sort_column = allowed_sort.get(sort_by, "t.date")
@@ -285,6 +293,20 @@ def index() -> str:
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     db = get_db()
+    total_count = db.execute(
+        f"""
+        SELECT COUNT(*) AS total
+        FROM tickets t
+        JOIN categories c ON t.category_id = c.id
+        {where_sql}
+        """,
+        params,
+    ).fetchone()["total"]
+
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    offset = (page - 1) * per_page
+
     ticket_rows = db.execute(
         f"""
         SELECT t.id, t.link, c.name AS category, t.description, t.date,
@@ -297,8 +319,9 @@ def index() -> str:
         {where_sql}
         GROUP BY t.id
         ORDER BY {sort_column} {sort_order}, t.id DESC
+        LIMIT ? OFFSET ?
         """,
-        params,
+        [*params, per_page, offset],
     ).fetchall()
 
     tickets = []
@@ -338,6 +361,10 @@ def index() -> str:
         "index.html",
         tickets=tickets,
         categories=categories,
+        total_count=total_count,
+        page=page,
+        total_pages=total_pages,
+        per_page=per_page,
         sort_by=sort_by,
         order=order,
         **filter_state,
