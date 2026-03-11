@@ -188,8 +188,9 @@ def _build_entry_filters(args: Any) -> tuple[list[str], list[Any], dict[str, Any
     params: list[Any] = []
 
     if description_search:
-        where_clauses.append("LOWER(t.description) LIKE ?")
-        params.append(f"%{description_search.lower()}%")
+        where_clauses.append("(LOWER(t.description) LIKE ? OR LOWER(t.link) LIKE ?)")
+        search_value = f"%{description_search.lower()}%"
+        params.extend([search_value, search_value])
 
     if category_filter.isdigit():
         where_clauses.append("t.category_id = ?")
