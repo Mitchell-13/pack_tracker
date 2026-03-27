@@ -115,6 +115,16 @@ def _sync_ticket_tags(db: sqlite3.Connection, ticket_id: int, tag_names: list[st
             "INSERT OR IGNORE INTO ticket_tags (ticket_id, tag_id) VALUES (?, ?)",
             (ticket_id, tag_id_row["id"]),
         )
+    _delete_unused_tags(db)
+
+
+def _delete_unused_tags(db: sqlite3.Connection) -> None:
+    db.execute(
+        """
+        DELETE FROM tags
+        WHERE id NOT IN (SELECT DISTINCT tag_id FROM ticket_tags)
+        """
+    )
 
 
 def _human_readable_date(raw_date: str) -> str:
@@ -325,6 +335,9 @@ def index() -> str:
     where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
     db = get_db()
+    _delete_unused_tags(db)
+    db.commit()
+
     total_count = db.execute(
         f"""
         SELECT COUNT(*) AS total
@@ -624,6 +637,7 @@ def edit_ticket(ticket_id: int) -> Any:
 def delete_ticket(ticket_id: int) -> Any:
     db = get_db()
     db.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
+    _delete_unused_tags(db)
     db.commit()
     return redirect(url_for("index"))
 
