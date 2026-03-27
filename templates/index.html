@@ -293,6 +293,20 @@
     .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
     .category-manager-list { margin-top: 0.6rem; }
     .category-manager-list .tag-bubble { cursor: pointer; }
+    .tag-suggestions {
+      margin-top: 0.45rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .tag-suggestions .tag-bubble {
+      cursor: pointer;
+      border: 1px solid rgba(125, 211, 252, 0.3);
+      transition: background-color 0.1s ease-in-out;
+    }
+
+    .tag-suggestions .tag-bubble:hover { background: rgba(56, 189, 248, 0.24); }
 
     .pagination {
       margin-top: 1rem;
@@ -361,9 +375,11 @@
 
       <label for="tags">Tags</label>
       <input id="tags" name="tags" type="hidden" />
-      <div class="tag-editor" data-tag-editor data-hidden-input-id="tags">
+      <div class="tag-editor" data-tag-editor data-hidden-input-id="tags" data-available-tags="{{ available_tags|join(', ') }}">
         <input type="text" placeholder="Add a tag then press Tab or click away" data-tag-input />
       </div>
+      <p class="helper-text">Quick add: click any existing tag below.</p>
+      <div class="tag-suggestions" data-tag-suggestions></div>
 
       <label for="date">Date</label>
       <input id="date" name="date" type="date" value="{{ today_date }}" required />
@@ -422,9 +438,11 @@
 
     <label for="edit_tags">Tags</label>
     <input id="edit_tags" name="tags" type="hidden" value="{{ ticket_to_edit['tags'] if ticket_to_edit else '' }}" />
-    <div class="tag-editor" data-tag-editor data-hidden-input-id="edit_tags">
+    <div class="tag-editor" data-tag-editor data-hidden-input-id="edit_tags" data-available-tags="{{ available_tags|join(', ') }}">
       <input type="text" placeholder="Add a tag then press Tab or click away" data-tag-input />
     </div>
+    <p class="helper-text">Quick add: click any existing tag below.</p>
+    <div class="tag-suggestions" data-tag-suggestions></div>
 
     <label for="edit_date">Date</label>
     <input id="edit_date" name="date" type="date" value="{{ ticket_to_edit['date'] }}" required />
@@ -759,11 +777,13 @@
     function initializeTagEditor(editor) {
       const hiddenInput = document.getElementById(editor.dataset.hiddenInputId);
       const tagInput = editor.querySelector('[data-tag-input]');
+      const suggestions = editor.parentElement.querySelector('[data-tag-suggestions]');
       if (!hiddenInput || !tagInput) {
         return;
       }
 
       const tags = [];
+      const availableTags = parseTags(editor.dataset.availableTags || '');
 
       function syncHiddenInput() {
         hiddenInput.value = tags.join(', ');
@@ -797,6 +817,26 @@
         });
 
         syncHiddenInput();
+        renderTagSuggestions();
+      }
+
+      function renderTagSuggestions() {
+        if (!suggestions) {
+          return;
+        }
+
+        suggestions.innerHTML = '';
+        availableTags.forEach((tag) => {
+          const bubble = document.createElement('button');
+          bubble.type = 'button';
+          bubble.className = 'tag-bubble';
+          bubble.textContent = tag;
+          bubble.addEventListener('click', () => {
+            addTag(tag);
+            tagInput.focus();
+          });
+          suggestions.appendChild(bubble);
+        });
       }
 
       function setTags(rawTags) {

@@ -179,6 +179,10 @@ def _category_rows(db: sqlite3.Connection) -> list[sqlite3.Row]:
     return db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
 
 
+def _tag_rows(db: sqlite3.Connection) -> list[sqlite3.Row]:
+    return db.execute("SELECT name FROM tags ORDER BY name COLLATE NOCASE ASC").fetchall()
+
+
 def _create_category(db: sqlite3.Connection, name: str) -> sqlite3.Row | None:
     normalized_name = name.strip()
     if not normalized_name:
@@ -360,6 +364,7 @@ def index() -> str:
         tickets.append(ticket_dict)
 
     categories = _category_rows(db)
+    available_tags = [row["name"] for row in _tag_rows(db)]
 
     ticket_to_edit = None
     if edit_id.isdigit():
@@ -397,6 +402,7 @@ def index() -> str:
         order=order,
         **filter_state,
         ticket_to_edit=ticket_to_edit,
+        available_tags=available_tags,
         today_date=date.today().isoformat(),
     )
 
