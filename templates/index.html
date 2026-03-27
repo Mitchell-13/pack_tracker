@@ -258,19 +258,8 @@
     .tag-bubble.filter-tag { cursor: pointer; font-weight: 600; transition: background-color 0.1s ease-in-out; }
     .tag-bubble.filter-tag:hover { background: rgba(56, 189, 248, 0.24); }
     .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-    .category-manager-list { margin-top: 0.8rem; }
-    .category-manager-list .compact-form { border: 0; background: transparent; padding: 0; box-shadow: none; }
+    .category-manager-list { margin-top: 0.6rem; }
     .category-manager-list .tag-bubble { cursor: pointer; }
-
-    .small-modal-content {
-      background: rgba(15, 23, 42, 0.96);
-      border: 1px solid var(--panel-border);
-      border-radius: 12px;
-      width: min(100%, 460px);
-      box-shadow: var(--shadow);
-    }
-
-    .small-modal-body { padding: 1rem; }
 
     .pagination {
       margin-top: 1rem;
@@ -308,15 +297,22 @@
       <label for="link">Link</label>
       <input id="link" name="link" type="url" required />
 
-      <label for="category_id">Category</label>
-      <div class="field-with-button">
-        <select id="category_id" name="category_id" required>
+      <div class="category-manager" data-category-manager>
+        <label for="category_id">Category</label>
+        <select id="category_id" name="category_id" data-category-select required>
           <option value="" selected disabled>Select category</option>
           {% for category in categories %}
             <option value="{{ category['id'] }}">{{ category['name'] }}</option>
           {% endfor %}
         </select>
-        <button id="open-category-modal" class="btn secondary" type="button">+ Category</button>
+
+        <label for="add_new_category_name">Category Manager</label>
+        <div class="field-with-button">
+          <input id="add_new_category_name" type="text" placeholder="e.g. Investigation" data-category-name-input />
+          <button class="btn secondary" type="button" data-add-category-button>Add</button>
+        </div>
+        <div class="tag-list category-manager-list" data-category-list></div>
+        <p data-category-message class="count-label"></p>
       </div>
 
       <label for="description">Description</label>
@@ -355,14 +351,25 @@
     <label for="edit_link">Link</label>
     <input id="edit_link" name="link" type="url" value="{{ ticket_to_edit['link'] }}" required />
 
-    <label for="edit_category_id">Category</label>
-    <select id="edit_category_id" name="category_id" required>
-      {% for category in categories %}
-        <option value="{{ category['id'] }}" {% if category['id'] == ticket_to_edit['category_id'] %}selected{% endif %}>
-          {{ category['name'] }}
-        </option>
-      {% endfor %}
-    </select>
+    <div class="category-manager" data-category-manager>
+      <label for="edit_category_id">Category</label>
+      <select id="edit_category_id" name="category_id" data-category-select required>
+        <option value="" disabled>Select category</option>
+        {% for category in categories %}
+          <option value="{{ category['id'] }}" {% if category['id'] == ticket_to_edit['category_id'] %}selected{% endif %}>
+            {{ category['name'] }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <label for="edit_new_category_name">Category Manager</label>
+      <div class="field-with-button">
+        <input id="edit_new_category_name" type="text" placeholder="e.g. Investigation" data-category-name-input />
+        <button class="btn secondary" type="button" data-add-category-button>Add</button>
+      </div>
+      <div class="tag-list category-manager-list" data-category-list></div>
+      <p data-category-message class="count-label"></p>
+    </div>
 
     <label for="edit_description">Description</label>
     <textarea id="edit_description" name="description" required>{{ ticket_to_edit['description'] }}</textarea>
@@ -550,48 +557,10 @@
     </div>
   </div>
 
-  <div id="category-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
-    <div class="small-modal-content">
-      <div class="modal-header">
-        <h3 id="category-modal-title">Add Category</h3>
-        <button id="close-category-modal" type="button">Close</button>
-      </div>
-      <div class="small-modal-body">
-        <form action="{{ url_for('add_category') }}" method="post" class="compact-form">
-          <label for="name">Category Name</label>
-          <input id="name" name="name" type="text" placeholder="e.g. Investigation, Pack Support, Etc." required />
-          <button type="submit">Add Category</button>
-        </form>
-
-        <div class="category-manager-list">
-          <label>Delete Categories</label>
-          <div class="tag-list">
-            {% for category in categories %}
-              <form action="{{ url_for('delete_category', category_id=category['id']) }}" method="post" class="compact-form">
-                <button
-                  type="submit"
-                  class="tag-bubble"
-                  onclick="return confirm('Delete category {{ category['name']|e }}? This only works for unused categories.');"
-                >
-                  {{ category['name'] }} <span aria-hidden="true">×</span>
-                </button>
-              </form>
-            {% else %}
-              <span>—</span>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script>
     const notesModal = document.getElementById('notes-modal');
     const notesContent = document.getElementById('notes-content');
     const closeNotesModalButton = document.getElementById('close-notes-modal');
-    const categoryModal = document.getElementById('category-modal');
-    const openCategoryModalButton = document.getElementById('open-category-modal');
-    const closeCategoryModalButton = document.getElementById('close-category-modal');
 
     document.querySelectorAll('[data-notes]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -612,32 +581,125 @@
       }
     });
 
-    function closeCategoryModal() {
-      categoryModal.classList.add('hidden');
-    }
-
-    openCategoryModalButton.addEventListener('click', () => {
-      categoryModal.classList.remove('hidden');
-      const nameInput = document.getElementById('name');
-      if (nameInput) {
-        nameInput.focus();
-      }
-    });
-
-    closeCategoryModalButton.addEventListener('click', closeCategoryModal);
-    categoryModal.addEventListener('click', (event) => {
-      if (event.target === categoryModal) {
-        closeCategoryModal();
-      }
-    });
-
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !notesModal.classList.contains('hidden')) {
         closeNotesModal();
       }
-      if (event.key === 'Escape' && !categoryModal.classList.contains('hidden')) {
-        closeCategoryModal();
+    });
+
+
+    function initializeCategoryManager(manager) {
+      const select = manager.querySelector('[data-category-select]');
+      const nameInput = manager.querySelector('[data-category-name-input]');
+      const addButton = manager.querySelector('[data-add-category-button]');
+      const categoryList = manager.querySelector('[data-category-list]');
+      const message = manager.querySelector('[data-category-message]');
+      if (!select || !nameInput || !addButton || !categoryList || !message) {
+        return;
       }
+
+      function syncSelectOptions(categories, selectedId) {
+        const currentSelection = selectedId ?? select.value;
+        const placeholder = select.querySelector('option[value=""]');
+        select.innerHTML = '';
+
+        if (placeholder) {
+          select.appendChild(placeholder.cloneNode(true));
+        } else {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'Select category';
+          select.appendChild(option);
+        }
+
+        categories.forEach((category) => {
+          const option = document.createElement('option');
+          option.value = String(category.id);
+          option.textContent = category.name;
+          if (String(category.id) === String(currentSelection)) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+      }
+
+      function renderCategoryDeleteButtons(categories) {
+        categoryList.innerHTML = '';
+        categories.forEach((category) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'tag-bubble';
+          button.dataset.categoryId = String(category.id);
+          button.innerHTML = `${category.name} <span aria-hidden="true">×</span>`;
+          button.addEventListener('click', async () => {
+            if (!confirm(`Delete category ${category.name}? This only works for unused categories.`)) {
+              return;
+            }
+
+            const response = await fetch(`/categories/${category.id}/delete/json`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: '',
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+              message.textContent = payload.error || 'Unable to delete category.';
+              return;
+            }
+
+            const selectedId = select.value === String(category.id) ? '' : select.value;
+            syncAllCategoryManagers(payload.categories, selectedId);
+            message.textContent = `Deleted category "${category.name}".`;
+          });
+          categoryList.appendChild(button);
+        });
+      }
+
+      manager.refreshCategories = (categories, selectedId) => {
+        syncSelectOptions(categories, selectedId);
+        renderCategoryDeleteButtons(categories);
+      };
+
+      addButton.addEventListener('click', async () => {
+        const categoryName = nameInput.value.trim();
+        if (!categoryName) {
+          message.textContent = 'Category name is required.';
+          return;
+        }
+
+        const response = await fetch('/categories/json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ name: categoryName }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          message.textContent = payload.error || 'Unable to add category.';
+          return;
+        }
+
+        nameInput.value = '';
+        syncAllCategoryManagers(payload.categories, String(payload.category.id));
+        message.textContent = `Added category "${payload.category.name}".`;
+      });
+
+      const categories = Array.from(select.options)
+        .filter((option) => option.value)
+        .map((option) => ({ id: Number(option.value), name: option.textContent.trim() }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      renderCategoryDeleteButtons(categories);
+    }
+
+    function syncAllCategoryManagers(categories, selectedId = '') {
+      document.querySelectorAll('[data-category-manager]').forEach((manager) => {
+        if (typeof manager.refreshCategories === 'function') {
+          manager.refreshCategories(categories, selectedId);
+        }
+      });
+    }
+
+    document.querySelectorAll('[data-category-manager]').forEach((manager) => {
+      initializeCategoryManager(manager);
     });
 
     const filterForm = document.querySelector('.controls form');

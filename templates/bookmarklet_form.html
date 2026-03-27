@@ -150,24 +150,32 @@
     <label for="link">Entry Link</label>
     <input id="link" name="link" type="url" value="{{ form_values['link'] }}" required />
 
-    <label for="category_id">Category</label>
-    <select id="category_id" name="category_id">
-      <option value="">Select category</option>
-      {% for category in categories %}
-        <option value="{{ category['id'] }}" {% if form_values['category_id'] == category['id']|string %}selected{% endif %}>
-          {{ category['name'] }}
-        </option>
-      {% endfor %}
-    </select>
+    <div class="category-manager" data-category-manager>
+      <label for="category_id">Category</label>
+      <select id="category_id" name="category_id" data-category-select required>
+        <option value="">Select category</option>
+        {% for category in categories %}
+          <option value="{{ category['id'] }}" {% if form_values['category_id'] == category['id']|string %}selected{% endif %}>
+            {{ category['name'] }}
+          </option>
+        {% endfor %}
+      </select>
 
-    <label for="new_category_name">Or add new category</label>
-    <input
-      id="new_category_name"
-      name="new_category_name"
-      type="text"
-      placeholder="e.g. Investigation"
-      value="{{ form_values.get('new_category_name', '') }}"
-    />
+      <label for="new_category_name">Category Manager</label>
+      <div style="display:flex; gap:0.5rem;">
+        <input
+          id="new_category_name"
+          name="new_category_name"
+          type="text"
+          placeholder="e.g. Investigation"
+          value="{{ form_values.get('new_category_name', '') }}"
+          data-category-name-input
+        />
+        <button type="button" style="width:auto;" data-add-category-button>Add</button>
+      </div>
+      <div class="tag-list" data-category-list style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.5rem;"></div>
+      <p data-category-message style="margin:0.4rem 0 0; color:var(--muted);"></p>
+    </div>
 
     <label for="description">Description</label>
     <textarea id="description" name="description" required>{{ form_values['description'] }}</textarea>
@@ -198,6 +206,126 @@
   </form>
 
   <script>
+
+    function initializeCategoryManager(manager) {
+      const select = manager.querySelector('[data-category-select]');
+      const nameInput = manager.querySelector('[data-category-name-input]');
+      const addButton = manager.querySelector('[data-add-category-button]');
+      const categoryList = manager.querySelector('[data-category-list]');
+      const message = manager.querySelector('[data-category-message]');
+      if (!select || !nameInput || !addButton || !categoryList || !message) {
+        return;
+      }
+
+      function parseCategoriesFromSelect() {
+        return Array.from(select.options)
+          .filter((option) => option.value)
+          .map((option) => ({ id: Number(option.value), name: option.textContent.trim() }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      function renderCategoryDeleteButtons(categories) {
+        categoryList.innerHTML = '';
+        categories.forEach((category) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'tag-bubble';
+          button.dataset.categoryId = String(category.id);
+          button.innerHTML = `${category.name} <span aria-hidden="true">×</span>`;
+          button.addEventListener('click', async () => {
+            if (!confirm(`Delete category ${category.name}? This only works for unused categories.`)) {
+              return;
+            }
+            const response = await fetch(`/categories/${category.id}/delete/json`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: '',
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+              message.textContent = payload.error || 'Unable to delete category.';
+              message.style.color = 'var(--error)';
+              return;
+            }
+
+            syncAllCategoryManagers(payload.categories, select.value === String(category.id) ? '' : select.value);
+            message.textContent = `Deleted category "${category.name}".`;
+            message.style.color = 'var(--success)';
+          });
+          categoryList.appendChild(button);
+        });
+      }
+
+      function syncSelectOptions(categories, selectedId) {
+        const currentSelection = selectedId ?? select.value;
+        const placeholder = select.querySelector('option[value=""]');
+        select.innerHTML = '';
+        if (placeholder) {
+          select.appendChild(placeholder);
+        } else {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'Select category';
+          select.appendChild(option);
+        }
+
+        categories.forEach((category) => {
+          const option = document.createElement('option');
+          option.value = String(category.id);
+          option.textContent = category.name;
+          if (String(category.id) === String(currentSelection)) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+      }
+
+      manager.refreshCategories = (categories, selectedId) => {
+        syncSelectOptions(categories, selectedId);
+        renderCategoryDeleteButtons(categories);
+      };
+
+      addButton.addEventListener('click', async () => {
+        const categoryName = nameInput.value.trim();
+        if (!categoryName) {
+          message.textContent = 'Category name is required.';
+          message.style.color = 'var(--error)';
+          return;
+        }
+
+        const response = await fetch('/categories/json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ name: categoryName }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          message.textContent = payload.error || 'Unable to add category.';
+          message.style.color = 'var(--error)';
+          return;
+        }
+
+        nameInput.value = '';
+        syncAllCategoryManagers(payload.categories, String(payload.category.id));
+        message.textContent = `Added category "${payload.category.name}".`;
+        message.style.color = 'var(--success)';
+      });
+
+      renderCategoryDeleteButtons(parseCategoriesFromSelect());
+    }
+
+    function syncAllCategoryManagers(categories, selectedId = '') {
+      document.querySelectorAll('[data-category-manager]').forEach((manager) => {
+        if (typeof manager.refreshCategories === 'function') {
+          manager.refreshCategories(categories, selectedId);
+        }
+      });
+    }
+
+    document.querySelectorAll('[data-category-manager]').forEach((manager) => {
+      initializeCategoryManager(manager);
+    });
+
     function initializeTagEditor(editor) {
       const hiddenInput = document.getElementById(editor.dataset.hiddenInputId);
       const tagInput = editor.querySelector('[data-tag-input]');
