@@ -1,5 +1,5 @@
 (function () {
-  const configuredBaseUrl = window.PACKCHECKIN_BASE_URL || "http://127.0.0.1:5000";
+  const configuredBaseUrl = window.PACKCHECKIN_BASE_URL || "http://127.0.0.1:80";
 
   let targetUrl;
   try {
