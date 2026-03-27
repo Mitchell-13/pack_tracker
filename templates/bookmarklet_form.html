@@ -21,15 +21,19 @@
 
     body {
       font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
-      max-width: 760px;
-      margin: 1.5rem auto;
-      padding: 0 1rem;
+      margin: 0;
+      padding: 1.5rem 1rem;
       line-height: 1.45;
       color: var(--text);
       background:
         radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.22), transparent 35%),
         linear-gradient(145deg, #020617, var(--bg));
       min-height: 100vh;
+    }
+
+    .page-content {
+      width: min(100%, 760px);
+      margin: 0 auto;
     }
 
     h1 { margin-bottom: 0.4rem; }
@@ -135,18 +139,19 @@
   </style>
 </head>
 <body>
-  <h1>Quick Add Entry</h1>
-  <p>This form is intended for bookmarklet usage. It pre-fills the current page URL as the entry link.</p>
+  <div class="page-content">
+    <h1>Quick Add Entry</h1>
+    <p>This form is intended for bookmarklet usage. It pre-fills the current page URL as the entry link.</p>
 
-  {% if success %}
-    <div class="message success">Entry saved successfully. This window will close automatically.</div>
-  {% endif %}
+    {% if success %}
+      <div class="message success">Entry saved successfully. This window will close automatically.</div>
+    {% endif %}
 
-  {% if error %}
-    <div class="message error">Please fill all required fields with valid values.</div>
-  {% endif %}
+    {% if error %}
+      <div class="message error">Please fill all required fields with valid values.</div>
+    {% endif %}
 
-  <form method="post" action="{{ url_for('bookmarklet_add_ticket') }}">
+    <form method="post" action="{{ url_for('bookmarklet_add_ticket') }}">
     <label for="link">Entry Link</label>
     <input id="link" name="link" type="url" value="{{ form_values['link'] }}" required />
 
@@ -202,8 +207,9 @@
       Favorite
     </label>
 
-    <button type="submit">Save Entry</button>
-  </form>
+      <button type="submit">Save Entry</button>
+    </form>
+  </div>
 
   <script>
 
