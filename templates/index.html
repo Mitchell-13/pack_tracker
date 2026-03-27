@@ -228,6 +228,39 @@
     .field-with-button { display: flex; gap: 0.5rem; align-items: center; }
     .field-with-button select { flex: 1; }
     .field-with-button button { width: auto; white-space: nowrap; }
+    .field-with-button input { flex: 1; }
+
+    .category-manager {
+      margin-top: 0.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.5);
+      padding: 0.55rem 0.65rem;
+    }
+
+    .category-manager summary {
+      cursor: pointer;
+      color: #7dd3fc;
+      font-size: 0.92rem;
+      font-weight: 600;
+      list-style: none;
+    }
+
+    .category-manager summary::-webkit-details-marker { display: none; }
+    .category-manager summary::after {
+      content: '▾';
+      margin-left: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .category-manager:not([open]) summary::after { content: '▸'; }
+    .category-manager .manager-content { margin-top: 0.55rem; }
+    .helper-text {
+      margin: 0.45rem 0 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
 
     .tag-editor {
       border: 1px solid rgba(148, 163, 184, 0.35);
@@ -297,7 +330,7 @@
       <label for="link">Link</label>
       <input id="link" name="link" type="url" required />
 
-      <div class="category-manager" data-category-manager>
+      <div data-category-manager>
         <label for="category_id">Category</label>
         <select id="category_id" name="category_id" data-category-select required>
           <option value="" selected disabled>Select category</option>
@@ -306,13 +339,18 @@
           {% endfor %}
         </select>
 
-        <label for="add_new_category_name">Category Manager</label>
-        <div class="field-with-button">
-          <input id="add_new_category_name" type="text" placeholder="e.g. Investigation" data-category-name-input />
-          <button class="btn secondary" type="button" data-add-category-button>Add</button>
-        </div>
-        <div class="tag-list category-manager-list" data-category-list></div>
-        <p data-category-message class="count-label"></p>
+        <details class="category-manager">
+          <summary>Quick add / manage categories</summary>
+          <div class="manager-content">
+            <div class="field-with-button">
+              <input id="add_new_category_name" type="text" placeholder="Type name and press Enter" data-category-name-input />
+              <button class="btn secondary" type="button" data-add-category-button>Add</button>
+            </div>
+            <p class="helper-text">Tip: click an existing category chip below to delete it if unused.</p>
+            <div class="tag-list category-manager-list" data-category-list></div>
+            <p data-category-message class="count-label"></p>
+          </div>
+        </details>
       </div>
 
       <label for="description">Description</label>
@@ -351,7 +389,7 @@
     <label for="edit_link">Link</label>
     <input id="edit_link" name="link" type="url" value="{{ ticket_to_edit['link'] }}" required />
 
-    <div class="category-manager" data-category-manager>
+    <div data-category-manager>
       <label for="edit_category_id">Category</label>
       <select id="edit_category_id" name="category_id" data-category-select required>
         <option value="" disabled>Select category</option>
@@ -362,13 +400,18 @@
         {% endfor %}
       </select>
 
-      <label for="edit_new_category_name">Category Manager</label>
-      <div class="field-with-button">
-        <input id="edit_new_category_name" type="text" placeholder="e.g. Investigation" data-category-name-input />
-        <button class="btn secondary" type="button" data-add-category-button>Add</button>
-      </div>
-      <div class="tag-list category-manager-list" data-category-list></div>
-      <p data-category-message class="count-label"></p>
+      <details class="category-manager">
+        <summary>Quick add / manage categories</summary>
+        <div class="manager-content">
+          <div class="field-with-button">
+            <input id="edit_new_category_name" type="text" placeholder="Type name and press Enter" data-category-name-input />
+            <button class="btn secondary" type="button" data-add-category-button>Add</button>
+          </div>
+          <p class="helper-text">Tip: click an existing category chip below to delete it if unused.</p>
+          <div class="tag-list category-manager-list" data-category-list></div>
+          <p data-category-message class="count-label"></p>
+        </div>
+      </details>
     </div>
 
     <label for="edit_description">Description</label>
@@ -660,7 +703,7 @@
         renderCategoryDeleteButtons(categories);
       };
 
-      addButton.addEventListener('click', async () => {
+      async function createCategory() {
         const categoryName = nameInput.value.trim();
         if (!categoryName) {
           message.textContent = 'Category name is required.';
@@ -681,6 +724,14 @@
         nameInput.value = '';
         syncAllCategoryManagers(payload.categories, String(payload.category.id));
         message.textContent = `Added category "${payload.category.name}".`;
+      }
+
+      addButton.addEventListener('click', createCategory);
+      nameInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          createCategory();
+        }
       });
 
       const categories = Array.from(select.options)
@@ -777,10 +828,14 @@
       setTags(hiddenInput.value);
 
       tagInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Tab') {
+        if (event.key === 'Tab' || event.key === 'Enter' || event.key === ',') {
           event.preventDefault();
           commitInputTag();
           tagInput.focus();
+        }
+
+        if (event.key === 'Backspace' && !tagInput.value && tags.length) {
+          removeTag(tags.length - 1);
         }
       });
 
