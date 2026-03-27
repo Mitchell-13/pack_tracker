@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from flask import Flask, Response, g, redirect, render_template, request, url_for
+from flask import Flask, Response, g, jsonify, redirect, render_template, request, url_for
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE = BASE_DIR / "tickets.db"
@@ -175,6 +175,34 @@ def _get_or_create_category_id(db: sqlite3.Connection, category_id: str, new_cat
     return str(category_row["id"])
 
 
+def _category_rows(db: sqlite3.Connection) -> list[sqlite3.Row]:
+    return db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
+
+
+def _create_category(db: sqlite3.Connection, name: str) -> sqlite3.Row | None:
+    normalized_name = name.strip()
+    if not normalized_name:
+        return None
+
+    db.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (normalized_name,))
+    return db.execute(
+        "SELECT id, name FROM categories WHERE LOWER(name) = LOWER(?)",
+        (normalized_name,),
+    ).fetchone()
+
+
+def _delete_category_if_unused(db: sqlite3.Connection, category_id: int) -> bool:
+    linked_ticket = db.execute(
+        "SELECT 1 FROM tickets WHERE category_id = ? LIMIT 1",
+        (category_id,),
+    ).fetchone()
+    if linked_ticket is not None:
+        return False
+
+    db.execute("DELETE FROM categories WHERE id = ?", (category_id,))
+    return True
+
+
 def _build_entry_filters(args: Any) -> tuple[list[str], list[Any], dict[str, Any]]:
     description_search = args.get("q", "").strip()
     category_filter = args.get("category_id", "").strip()
@@ -331,7 +359,7 @@ def index() -> str:
         ticket_dict["link_label"] = _entry_link_label(ticket_dict["link"])
         tickets.append(ticket_dict)
 
-    categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
+    categories = _category_rows(db)
 
     ticket_to_edit = None
     if edit_id.isdigit():
@@ -470,7 +498,7 @@ def add_ticket() -> Any:
 @app.route("/bookmarklet/new", methods=["GET", "POST"])
 def bookmarklet_add_ticket() -> str:
     db = get_db()
-    categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
+    categories = _category_rows(db)
 
     if request.method == "GET":
         link = request.args.get("link", "").strip()
@@ -515,7 +543,7 @@ def bookmarklet_add_ticket() -> str:
     }
 
     if entry_fields is None:
-        categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
+        categories = _category_rows(db)
         return render_template(
             "bookmarklet_form.html",
             categories=categories,
@@ -546,7 +574,7 @@ def bookmarklet_add_ticket() -> str:
             "favorite": False,
         }
     )
-    categories = db.execute("SELECT id, name FROM categories ORDER BY name ASC").fetchall()
+    categories = _category_rows(db)
     return render_template(
         "bookmarklet_form.html",
         categories=categories,
@@ -595,29 +623,55 @@ def delete_ticket(ticket_id: int) -> Any:
 
 @app.route("/categories", methods=["POST"])
 def add_category() -> Any:
-    name = request.form.get("name", "").strip()
-    if not name:
+    name = request.form.get("name", "")
+    db = get_db()
+    category_row = _create_category(db, name)
+    if category_row is None:
         return redirect(url_for("index"))
 
-    db = get_db()
-    db.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (name,))
     db.commit()
     return redirect(url_for("index"))
+
+
+@app.route("/categories/json", methods=["POST"])
+def add_category_json() -> Response:
+    db = get_db()
+    category_row = _create_category(db, request.form.get("name", ""))
+    if category_row is None:
+        return jsonify({"success": False, "error": "Category name is required."}), 400
+
+    db.commit()
+    categories = [{"id": row["id"], "name": row["name"]} for row in _category_rows(db)]
+    return jsonify(
+        {
+            "success": True,
+            "category": {"id": category_row["id"], "name": category_row["name"]},
+            "categories": categories,
+        }
+    )
 
 
 @app.route("/categories/<int:category_id>/delete", methods=["POST"])
 def delete_category(category_id: int) -> Any:
     db = get_db()
-    linked_ticket = db.execute(
-        "SELECT 1 FROM tickets WHERE category_id = ? LIMIT 1",
-        (category_id,),
-    ).fetchone()
-    if linked_ticket is not None:
+    deleted = _delete_category_if_unused(db, category_id)
+    if not deleted:
         return redirect(url_for("index"))
 
-    db.execute("DELETE FROM categories WHERE id = ?", (category_id,))
     db.commit()
     return redirect(url_for("index"))
+
+
+@app.route("/categories/<int:category_id>/delete/json", methods=["POST"])
+def delete_category_json(category_id: int) -> Response:
+    db = get_db()
+    deleted = _delete_category_if_unused(db, category_id)
+    if not deleted:
+        return jsonify({"success": False, "error": "Category is in use and cannot be deleted."}), 400
+
+    db.commit()
+    categories = [{"id": row["id"], "name": row["name"]} for row in _category_rows(db)]
+    return jsonify({"success": True, "categories": categories})
 
 
 if __name__ == "__main__":
