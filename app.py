@@ -518,12 +518,14 @@ def add_ticket() -> Any:
 def bookmarklet_add_ticket() -> str:
     db = get_db()
     categories = _category_rows(db)
+    available_tags = [row["name"] for row in _tag_rows(db)]
 
     if request.method == "GET":
         link = request.args.get("link", "").strip()
         return render_template(
             "bookmarklet_form.html",
             categories=categories,
+            available_tags=available_tags,
             today_date=date.today().isoformat(),
             success=False,
             error=False,
@@ -566,6 +568,7 @@ def bookmarklet_add_ticket() -> str:
         return render_template(
             "bookmarklet_form.html",
             categories=categories,
+            available_tags=available_tags,
             today_date=date.today().isoformat(),
             success=False,
             error=True,
@@ -597,6 +600,7 @@ def bookmarklet_add_ticket() -> str:
     return render_template(
         "bookmarklet_form.html",
         categories=categories,
+        available_tags=available_tags,
         today_date=date.today().isoformat(),
         success=True,
         error=False,
