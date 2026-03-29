@@ -4,17 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
-  <title>Quick Add</title>
+  <title>PackTracker · Quick Add</title>
   <style>
     :root {
-      --bg: #050816;
-      --panel: rgba(15, 23, 42, 0.9);
-      --panel-border: rgba(148, 163, 184, 0.3);
+      --bg: #060913;
+      --bg-alt: #0d1324;
+      --panel: rgba(17, 24, 39, 0.8);
+      --panel-border: rgba(148, 163, 184, 0.24);
       --text: #e2e8f0;
       --muted: #94a3b8;
-      --primary: #22d3ee;
+      --primary: #38bdf8;
+      --primary-strong: #0ea5e9;
+      --danger: #f87171;
       --success: #34d399;
       --error: #f87171;
+      --shadow: 0 22px 45px rgba(2, 6, 23, 0.42);
     }
 
     * { box-sizing: border-box; }
@@ -22,100 +26,94 @@
     body {
       font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
       margin: 0;
-      padding: 1.5rem 1rem;
-      line-height: 1.45;
+      padding: 2rem 1rem;
       color: var(--text);
       background:
-        radial-gradient(circle at 10% 10%, rgba(34, 211, 238, 0.22), transparent 35%),
-        linear-gradient(145deg, #020617, var(--bg));
+        radial-gradient(circle at 10% 15%, rgba(56, 189, 248, 0.2), transparent 40%),
+        radial-gradient(circle at 90% 5%, rgba(20, 184, 166, 0.15), transparent 35%),
+        linear-gradient(140deg, var(--bg) 0%, var(--bg-alt) 100%);
       min-height: 100vh;
     }
 
     .page-content {
-      width: min(100%, 760px);
+      width: min(100%, 900px);
       margin: 0 auto;
     }
 
-    h1 { margin-bottom: 0.4rem; }
-    p { color: var(--muted); margin-top: 0; }
-
-    form {
-      display: grid;
-      gap: 0.75rem;
-      border: 1px solid var(--panel-border);
-      border-radius: 14px;
-      padding: 1rem;
-      background: var(--panel);
-      box-shadow: 0 20px 40px rgba(2, 6, 23, 0.45);
+    h1 {
+      margin: 0 0 0.4rem;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.02em;
     }
 
-    label { font-weight: 600; color: #cbd5e1; }
+    p {
+      margin-top: 0;
+      color: var(--muted);
+    }
+
+    form {
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 1rem;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    label { display: block; margin: 0.75rem 0 0.35rem; font-weight: 600; color: #cbd5e1; }
 
     input,
     select,
     textarea,
     button {
-      font: inherit;
+      width: 100%;
       padding: 0.6rem 0.72rem;
       border-radius: 10px;
       border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.85);
       color: var(--text);
-      background: rgba(15, 23, 42, 0.85);
+      font: inherit;
     }
 
-    textarea { min-height: 5rem; resize: vertical; }
-
-    button {
-      background: linear-gradient(145deg, #67e8f9, var(--primary));
-      color: #06202a;
-      font-weight: 700;
-      cursor: pointer;
-      border: 0;
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid rgba(56, 189, 248, 0.45);
+      border-color: var(--primary);
     }
 
-    .tag-editor {
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      border-radius: 10px;
-      background: rgba(15, 23, 42, 0.85);
-      padding: 0.35rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-      min-height: 42px;
-    }
+    textarea { min-height: 80px; resize: vertical; }
+    .notes-input { min-height: 180px; }
 
-    .tag-editor input {
-      border: 0;
-      outline: none;
-      min-width: 180px;
-      flex: 1;
-      padding: 0.35rem;
-      background: transparent;
-    }
-
-    .tag-bubble {
+    .btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      background: rgba(34, 211, 238, 0.16);
-      color: #67e8f9;
-      border-radius: 999px;
-      padding: 0.2rem 0.55rem;
-      font-size: 0.9rem;
-    }
-
-    .tag-bubble button {
+      justify-content: center;
       width: auto;
-      border: 0;
-      background: transparent;
-      color: inherit;
+      padding: 0.55rem 0.95rem;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: linear-gradient(145deg, var(--primary), var(--primary-strong));
+      color: #02111f;
+      text-decoration: none;
+      font-weight: 700;
+      line-height: 1.2;
       cursor: pointer;
-      padding: 0;
-      line-height: 1;
-      font-size: 1rem;
+      transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
-    .inline { display: flex; align-items: center; gap: 0.5rem; font-weight: 400; }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35); }
+
+    .btn.secondary {
+      background: rgba(15, 23, 42, 0.78);
+      color: #7dd3fc;
+      border-color: rgba(125, 211, 252, 0.35);
+    }
+
+    .btn.secondary:hover { background: rgba(30, 41, 59, 0.9); box-shadow: none; }
+
+    .inline { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+    .inline input { width: auto; accent-color: var(--primary); }
 
     .message {
       padding: 0.75rem;
@@ -136,12 +134,108 @@
       border-color: rgba(248, 113, 113, 0.5);
       color: #fecaca;
     }
+
+    .field-with-button { display: flex; gap: 0.5rem; align-items: center; }
+    .field-with-button input { flex: 1; }
+    .field-with-button button { width: auto; white-space: nowrap; }
+
+    .category-manager {
+      margin-top: 0.5rem;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.5);
+      padding: 0.55rem 0.65rem;
+    }
+
+    .category-manager summary {
+      cursor: pointer;
+      color: #7dd3fc;
+      font-size: 0.92rem;
+      font-weight: 600;
+      list-style: none;
+    }
+
+    .category-manager summary::-webkit-details-marker { display: none; }
+    .category-manager summary::after {
+      content: '▾';
+      margin-left: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .category-manager:not([open]) summary::after { content: '▸'; }
+    .category-manager .manager-content { margin-top: 0.55rem; }
+
+    .helper-text {
+      margin: 0.45rem 0 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .tag-editor {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 0.35rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      min-height: 42px;
+    }
+
+    .tag-editor input { border: 0; outline: none; min-width: 180px; flex: 1; padding: 0.35rem; background: transparent; }
+
+    .tag-bubble {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(56, 189, 248, 0.16);
+      color: #7dd3fc;
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.9rem;
+    }
+
+    .tag-bubble button {
+      width: auto;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      font-size: 1rem;
+    }
+
+    button.tag-bubble { width: auto; max-width: 100%; flex: 0 0 auto; border: 1px solid rgba(125, 211, 252, 0.3); }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .category-manager-list { margin-top: 0.6rem; }
+    .category-manager-list .tag-bubble { cursor: pointer; }
+
+    .tag-suggestions {
+      margin-top: 0.45rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .tag-suggestions .tag-bubble {
+      cursor: pointer;
+      border: 1px solid rgba(125, 211, 252, 0.3);
+      transition: background-color 0.1s ease-in-out;
+    }
+
+    .tag-suggestions .tag-bubble:hover { background: rgba(56, 189, 248, 0.24); }
+
+    @media (max-width: 840px) {
+      body { padding: 1rem; }
+    }
   </style>
 </head>
 <body>
   <div class="page-content">
     <h1>Quick Add Entry</h1>
-    <p>This form is intended for bookmarklet usage. It pre-fills the current page URL as the entry link.</p>
+    <p>This form is intended for bookmarklet usage and mirrors the Add New Entry flow.</p>
 
     {% if success %}
       <div class="message success">Entry saved successfully. This window will close automatically.</div>
@@ -152,67 +246,72 @@
     {% endif %}
 
     <form method="post" action="{{ url_for('bookmarklet_add_ticket') }}">
-    <label for="link">Entry Link</label>
-    <input id="link" name="link" type="url" value="{{ form_values['link'] }}" required />
+      <label for="link">Link</label>
+      <input id="link" name="link" type="url" value="{{ form_values['link'] }}" required />
 
-    <div class="category-manager" data-category-manager>
-      <label for="category_id">Category</label>
-      <select id="category_id" name="category_id" data-category-select required>
-        <option value="">Select category</option>
-        {% for category in categories %}
-          <option value="{{ category['id'] }}" {% if form_values['category_id'] == category['id']|string %}selected{% endif %}>
-            {{ category['name'] }}
-          </option>
-        {% endfor %}
-      </select>
+      <div data-category-manager>
+        <label for="category_id">Category</label>
+        <select id="category_id" name="category_id" data-category-select required>
+          <option value="" {% if not form_values['category_id'] %}selected{% endif %} disabled>Select category</option>
+          {% for category in categories %}
+            <option value="{{ category['id'] }}" {% if form_values['category_id'] == category['id']|string %}selected{% endif %}>
+              {{ category['name'] }}
+            </option>
+          {% endfor %}
+        </select>
 
-      <label for="new_category_name">Category Manager</label>
-      <div style="display:flex; gap:0.5rem;">
-        <input
-          id="new_category_name"
-          name="new_category_name"
-          type="text"
-          placeholder="e.g. Investigation"
-          value="{{ form_values.get('new_category_name', '') }}"
-          data-category-name-input
-        />
-        <button type="button" style="width:auto;" data-add-category-button>Add</button>
+        <details class="category-manager">
+          <summary>Quick add / manage categories</summary>
+          <div class="manager-content">
+            <div class="field-with-button">
+              <input
+                id="new_category_name"
+                type="text"
+                placeholder="Type name and press Enter"
+                value="{{ form_values.get('new_category_name', '') }}"
+                data-category-name-input
+              />
+              <button class="btn secondary" type="button" data-add-category-button>Add</button>
+            </div>
+            <p class="helper-text">Tip: click an existing category chip below to delete it if unused.</p>
+            <div class="tag-list category-manager-list" data-category-list></div>
+            <p data-category-message class="helper-text"></p>
+          </div>
+        </details>
       </div>
-      <div class="tag-list" data-category-list style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.5rem;"></div>
-      <p data-category-message style="margin:0.4rem 0 0; color:var(--muted);"></p>
-    </div>
 
-    <label for="description">Description</label>
-    <textarea id="description" name="description" required>{{ form_values['description'] }}</textarea>
+      <label for="description">Description</label>
+      <textarea id="description" name="description" required>{{ form_values['description'] }}</textarea>
 
-    <label for="ai_analysis">Notes</label>
-    <textarea id="ai_analysis" name="ai_analysis">{{ form_values['notes'] }}</textarea>
+      <label for="ai_analysis">Notes</label>
+      <textarea id="ai_analysis" class="notes-input" name="ai_analysis" placeholder="Add notes">{{ form_values['notes'] }}</textarea>
 
-    <label for="tags">Tags</label>
-    <input id="tags" name="tags" type="hidden" value="{{ form_values['tags'] }}" />
-    <div class="tag-editor" data-tag-editor data-hidden-input-id="tags">
-      <input type="text" placeholder="Add a tag then press Tab or click away" data-tag-input />
-    </div>
+      <label for="tags">Tags</label>
+      <input id="tags" name="tags" type="hidden" value="{{ form_values['tags'] }}" />
+      <div class="tag-editor" data-tag-editor data-hidden-input-id="tags" data-available-tags="{{ available_tags|join(', ') }}">
+        <input type="text" placeholder="Add a tag then press Tab or click away" data-tag-input />
+      </div>
+      <p class="helper-text">Quick add: click any existing tag below.</p>
+      <div class="tag-suggestions" data-tag-suggestions></div>
 
-    <label for="date">Date</label>
-    <input id="date" name="date" type="date" value="{{ form_values['date'] or today_date }}" required />
+      <label for="date">Date</label>
+      <input id="date" name="date" type="date" value="{{ form_values['date'] or today_date }}" required />
 
-    <label class="inline" for="shared_with_manager">
-      <input id="shared_with_manager" name="shared_with_manager" type="checkbox" {% if form_values['shared_with_manager'] %}checked{% endif %} />
-      Shared with manager
-    </label>
+      <label class="inline" for="shared_with_manager">
+        <input id="shared_with_manager" name="shared_with_manager" type="checkbox" {% if form_values['shared_with_manager'] %}checked{% endif %} />
+        Shared with manager
+      </label>
 
-    <label class="inline" for="favorite">
-      <input id="favorite" name="favorite" type="checkbox" {% if form_values['favorite'] %}checked{% endif %} />
-      Favorite
-    </label>
+      <label class="inline" for="favorite">
+        <input id="favorite" name="favorite" type="checkbox" {% if form_values['favorite'] %}checked{% endif %} />
+        Favorite
+      </label>
 
-      <button type="submit">Save Entry</button>
+      <button class="btn" type="submit">Save Entry</button>
     </form>
   </div>
 
   <script>
-
     function initializeCategoryManager(manager) {
       const select = manager.querySelector('[data-category-select]');
       const nameInput = manager.querySelector('[data-category-name-input]');
@@ -223,55 +322,18 @@
         return;
       }
 
-      function parseCategoriesFromSelect() {
-        return Array.from(select.options)
-          .filter((option) => option.value)
-          .map((option) => ({ id: Number(option.value), name: option.textContent.trim() }))
-          .sort((a, b) => a.name.localeCompare(b.name));
-      }
-
-      function renderCategoryDeleteButtons(categories) {
-        categoryList.innerHTML = '';
-        categories.forEach((category) => {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'tag-bubble';
-          button.dataset.categoryId = String(category.id);
-          button.innerHTML = `${category.name} <span aria-hidden="true">×</span>`;
-          button.addEventListener('click', async () => {
-            if (!confirm(`Delete category ${category.name}? This only works for unused categories.`)) {
-              return;
-            }
-            const response = await fetch(`/categories/${category.id}/delete/json`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: '',
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload.success) {
-              message.textContent = payload.error || 'Unable to delete category.';
-              message.style.color = 'var(--error)';
-              return;
-            }
-
-            syncAllCategoryManagers(payload.categories, select.value === String(category.id) ? '' : select.value);
-            message.textContent = `Deleted category "${category.name}".`;
-            message.style.color = 'var(--success)';
-          });
-          categoryList.appendChild(button);
-        });
-      }
-
       function syncSelectOptions(categories, selectedId) {
         const currentSelection = selectedId ?? select.value;
         const placeholder = select.querySelector('option[value=""]');
         select.innerHTML = '';
+
         if (placeholder) {
-          select.appendChild(placeholder);
+          select.appendChild(placeholder.cloneNode(true));
         } else {
           const option = document.createElement('option');
           option.value = '';
           option.textContent = 'Select category';
+          option.disabled = true;
           select.appendChild(option);
         }
 
@@ -286,12 +348,46 @@
         });
       }
 
+      function renderCategoryDeleteButtons(categories) {
+        categoryList.innerHTML = '';
+        categories.forEach((category) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'tag-bubble';
+          button.dataset.categoryId = String(category.id);
+          button.innerHTML = `${category.name} <span aria-hidden="true">×</span>`;
+          button.addEventListener('click', async () => {
+            if (!confirm(`Delete category ${category.name}? This only works for unused categories.`)) {
+              return;
+            }
+
+            const response = await fetch(`/categories/${category.id}/delete/json`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: '',
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+              message.textContent = payload.error || 'Unable to delete category.';
+              message.style.color = 'var(--error)';
+              return;
+            }
+
+            const selectedId = select.value === String(category.id) ? '' : select.value;
+            syncAllCategoryManagers(payload.categories, selectedId);
+            message.textContent = `Deleted category "${category.name}".`;
+            message.style.color = 'var(--success)';
+          });
+          categoryList.appendChild(button);
+        });
+      }
+
       manager.refreshCategories = (categories, selectedId) => {
         syncSelectOptions(categories, selectedId);
         renderCategoryDeleteButtons(categories);
       };
 
-      addButton.addEventListener('click', async () => {
+      async function createCategory() {
         const categoryName = nameInput.value.trim();
         if (!categoryName) {
           message.textContent = 'Category name is required.';
@@ -315,9 +411,21 @@
         syncAllCategoryManagers(payload.categories, String(payload.category.id));
         message.textContent = `Added category "${payload.category.name}".`;
         message.style.color = 'var(--success)';
+      }
+
+      addButton.addEventListener('click', createCategory);
+      nameInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          createCategory();
+        }
       });
 
-      renderCategoryDeleteButtons(parseCategoriesFromSelect());
+      const categories = Array.from(select.options)
+        .filter((option) => option.value)
+        .map((option) => ({ id: Number(option.value), name: option.textContent.trim() }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      renderCategoryDeleteButtons(categories);
     }
 
     function syncAllCategoryManagers(categories, selectedId = '') {
@@ -328,22 +436,23 @@
       });
     }
 
-    document.querySelectorAll('[data-category-manager]').forEach((manager) => {
-      initializeCategoryManager(manager);
-    });
+    function parseTags(rawTags) {
+      return (rawTags || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag);
+    }
 
     function initializeTagEditor(editor) {
       const hiddenInput = document.getElementById(editor.dataset.hiddenInputId);
       const tagInput = editor.querySelector('[data-tag-input]');
+      const suggestions = editor.parentElement.querySelector('[data-tag-suggestions]');
       if (!hiddenInput || !tagInput) {
         return;
       }
 
       const tags = [];
-      const existingTags = (hiddenInput.value || '')
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag);
+      const availableTags = parseTags(editor.dataset.availableTags || '');
 
       function syncHiddenInput() {
         hiddenInput.value = tags.join(', ');
@@ -352,6 +461,25 @@
       function removeTag(indexToRemove) {
         tags.splice(indexToRemove, 1);
         renderTags();
+      }
+
+      function renderTagSuggestions() {
+        if (!suggestions) {
+          return;
+        }
+
+        suggestions.innerHTML = '';
+        availableTags.forEach((tag) => {
+          const bubble = document.createElement('button');
+          bubble.type = 'button';
+          bubble.className = 'tag-bubble';
+          bubble.textContent = tag;
+          bubble.addEventListener('click', () => {
+            addTag(tag);
+            tagInput.focus();
+          });
+          suggestions.appendChild(bubble);
+        });
       }
 
       function renderTags() {
@@ -373,6 +501,13 @@
         });
 
         syncHiddenInput();
+        renderTagSuggestions();
+      }
+
+      function setTags(rawTags) {
+        tags.length = 0;
+        parseTags(rawTags).forEach((tag) => tags.push(tag));
+        renderTags();
       }
 
       function addTag(rawTag) {
@@ -395,13 +530,17 @@
         tagInput.value = '';
       }
 
-      existingTags.forEach((tag) => addTag(tag));
+      setTags(hiddenInput.value);
 
       tagInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Tab') {
+        if (event.key === 'Tab' || event.key === 'Enter' || event.key === ',') {
           event.preventDefault();
           commitInputTag();
           tagInput.focus();
+        }
+
+        if (event.key === 'Backspace' && !tagInput.value && tags.length) {
+          removeTag(tags.length - 1);
         }
       });
 
@@ -415,6 +554,10 @@
 
       renderTags();
     }
+
+    document.querySelectorAll('[data-category-manager]').forEach((manager) => {
+      initializeCategoryManager(manager);
+    });
 
     document.querySelectorAll('[data-tag-editor]').forEach((editor) => {
       initializeTagEditor(editor);
