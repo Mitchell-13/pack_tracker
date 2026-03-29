@@ -21,6 +21,7 @@ def get_db() -> sqlite3.Connection:
     if "db" not in g:
         g.db = sqlite3.connect(DATABASE)
         g.db.row_factory = sqlite3.Row
+        g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
 
@@ -33,6 +34,7 @@ def close_db(_: Any) -> None:
 
 def init_db() -> None:
     db = sqlite3.connect(DATABASE)
+    db.execute("PRAGMA foreign_keys = ON")
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS categories (
@@ -82,6 +84,12 @@ def init_db() -> None:
     if "ai_analysis" not in ticket_columns:
         db.execute("ALTER TABLE tickets ADD COLUMN ai_analysis TEXT NOT NULL DEFAULT ''")
 
+    db.execute(
+        """
+        DELETE FROM ticket_tags
+        WHERE ticket_id NOT IN (SELECT id FROM tickets)
+        """
+    )
     db.execute(
         """
         DELETE FROM tags
