@@ -82,6 +82,13 @@ def init_db() -> None:
     if "ai_analysis" not in ticket_columns:
         db.execute("ALTER TABLE tickets ADD COLUMN ai_analysis TEXT NOT NULL DEFAULT ''")
 
+    db.execute(
+        """
+        DELETE FROM tags
+        WHERE id NOT IN (SELECT DISTINCT tag_id FROM ticket_tags)
+        """
+    )
+
     db.commit()
     db.close()
 
