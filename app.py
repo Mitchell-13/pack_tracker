@@ -323,6 +323,61 @@ def _validated_entry_fields(form: Any) -> tuple[str, str, str, str, str, int, in
     )
 
 
+def _find_potential_duplicates(
+    db: sqlite3.Connection,
+    link: str,
+    exclude_ticket_id: int | None = None,
+) -> list[dict[str, Any]]:
+    normalized_link = link.strip().lower()
+    if not normalized_link:
+        return []
+
+    where_parts = ["LOWER(t.link) = ?"]
+    params: list[Any] = [normalized_link]
+
+    if exclude_ticket_id is not None:
+        where_parts.append("t.id != ?")
+        params.append(exclude_ticket_id)
+
+    rows = db.execute(
+        f"""
+        SELECT t.id, t.link, t.category_id, t.description, t.ai_analysis AS notes, t.date,
+               t.shared_with_manager, t.favorite,
+               c.name AS category,
+               COALESCE(GROUP_CONCAT(tg.name, ', '), '') AS tags
+        FROM tickets t
+        JOIN categories c ON c.id = t.category_id
+        LEFT JOIN ticket_tags tt ON tt.ticket_id = t.id
+        LEFT JOIN tags tg ON tg.id = tt.tag_id
+        WHERE {' AND '.join(where_parts)}
+        GROUP BY t.id
+        ORDER BY t.date DESC, t.id DESC
+        LIMIT 5
+        """,
+        params,
+    ).fetchall()
+
+    duplicates: list[dict[str, Any]] = []
+    for row in rows:
+        duplicates.append(
+            {
+                "id": row["id"],
+                "link": row["link"],
+                "category_id": row["category_id"],
+                "description": row["description"],
+                "notes": row["notes"],
+                "date": row["date"],
+                "display_date": _human_readable_date(row["date"]),
+                "shared_with_manager": bool(row["shared_with_manager"]),
+                "favorite": bool(row["favorite"]),
+                "category": row["category"],
+                "tags": row["tags"],
+            }
+        )
+
+    return duplicates
+
+
 @app.route("/favicon.ico")
 def favicon() -> Response:
     return redirect(url_for("static", filename="favicon.ico"))
@@ -515,8 +570,45 @@ def add_ticket() -> Any:
         return redirect(url_for("index"))
 
     link, category_id, description, notes, date_value, shared_with_manager, favorite, tags = entry_fields
+    duplicate_action = request.form.get("duplicate_action", "").strip()
+    merge_target_id = request.form.get("merge_target_id", "").strip()
 
     db = get_db()
+
+    if duplicate_action != "continue":
+        potential_duplicates = _find_potential_duplicates(db, link)
+        if potential_duplicates and duplicate_action != "merge":
+            return redirect(url_for("index"))
+
+    if duplicate_action == "merge" and merge_target_id.isdigit():
+        target_id = int(merge_target_id)
+        merge_category_choice = request.form.get("merge_category_choice", "").strip()
+        target_ticket = db.execute(
+            "SELECT id, category_id FROM tickets WHERE id = ?",
+            (target_id,),
+        ).fetchone()
+        if target_ticket is None:
+            return redirect(url_for("index"))
+        final_category_id = target_ticket["category_id"] if merge_category_choice == "keep_existing" else category_id
+
+        db.execute(
+            """
+            UPDATE tickets
+            SET link = ?,
+                category_id = ?,
+                description = ?,
+                ai_analysis = ?,
+                date = ?,
+                shared_with_manager = ?,
+                favorite = ?
+            WHERE id = ?
+            """,
+            (link, final_category_id, description, notes, date_value, shared_with_manager, favorite, target_id),
+        )
+        _sync_ticket_tags(db, target_id, tags)
+        db.commit()
+        return redirect(url_for("index"))
+
     cursor = db.execute(
         """
         INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
@@ -527,6 +619,16 @@ def add_ticket() -> Any:
     _sync_ticket_tags(db, cursor.lastrowid, tags)
     db.commit()
     return redirect(url_for("index"))
+
+
+@app.route("/tickets/duplicates/check", methods=["POST"])
+def check_duplicates() -> Response:
+    link = request.form.get("link", "").strip()
+    if not link:
+        return jsonify({"success": False, "duplicates": [], "error": "Link is required."}), 400
+    db = get_db()
+    duplicates = _find_potential_duplicates(db, link)
+    return jsonify({"success": True, "duplicates": duplicates})
 
 
 @app.route("/bookmarklet/new", methods=["GET", "POST"])
@@ -591,14 +693,56 @@ def bookmarklet_add_ticket() -> str:
         )
 
     link, category_id, description, notes, date_value, shared_with_manager, favorite, tags = entry_fields
-    cursor = db.execute(
-        """
-        INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (link, category_id, description, notes, date_value, shared_with_manager, favorite),
-    )
-    _sync_ticket_tags(db, cursor.lastrowid, tags)
+    duplicate_action = request.form.get("duplicate_action", "").strip()
+    merge_target_id = request.form.get("merge_target_id", "").strip()
+    merge_category_choice = request.form.get("merge_category_choice", "").strip()
+
+    if duplicate_action != "continue":
+        potential_duplicates = _find_potential_duplicates(db, link)
+        if potential_duplicates and duplicate_action != "merge":
+            categories = _category_rows(db)
+            return render_template(
+                "bookmarklet_form.html",
+                categories=categories,
+                available_tags=available_tags,
+                today_date=date.today().isoformat(),
+                success=False,
+                error=True,
+                form_values=form_values,
+            )
+
+    if duplicate_action == "merge" and merge_target_id.isdigit():
+        target_id = int(merge_target_id)
+        target_ticket = db.execute(
+            "SELECT id, category_id FROM tickets WHERE id = ?",
+            (target_id,),
+        ).fetchone()
+        if target_ticket is not None:
+            final_category_id = target_ticket["category_id"] if merge_category_choice == "keep_existing" else category_id
+            db.execute(
+                """
+                UPDATE tickets
+                SET link = ?,
+                    category_id = ?,
+                    description = ?,
+                    ai_analysis = ?,
+                    date = ?,
+                    shared_with_manager = ?,
+                    favorite = ?
+                WHERE id = ?
+                """,
+                (link, final_category_id, description, notes, date_value, shared_with_manager, favorite, target_id),
+            )
+            _sync_ticket_tags(db, target_id, tags)
+    else:
+        cursor = db.execute(
+            """
+            INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (link, category_id, description, notes, date_value, shared_with_manager, favorite),
+        )
+        _sync_ticket_tags(db, cursor.lastrowid, tags)
     db.commit()
 
     form_values.update(
