@@ -323,6 +323,66 @@ def _validated_entry_fields(form: Any) -> tuple[str, str, str, str, str, int, in
     )
 
 
+def _find_potential_duplicates(
+    db: sqlite3.Connection,
+    link: str,
+    description: str,
+    category_id: str,
+    exclude_ticket_id: int | None = None,
+) -> list[dict[str, Any]]:
+    normalized_link = link.strip().lower()
+    normalized_description = description.strip().lower()
+    if not normalized_link and not normalized_description:
+        return []
+
+    where_parts = [
+        "(LOWER(t.link) = ? OR LOWER(TRIM(t.description)) = ?)",
+        "t.category_id = ?",
+    ]
+    params: list[Any] = [normalized_link, normalized_description, int(category_id)]
+
+    if exclude_ticket_id is not None:
+        where_parts.append("t.id != ?")
+        params.append(exclude_ticket_id)
+
+    rows = db.execute(
+        f"""
+        SELECT t.id, t.link, t.description, t.ai_analysis AS notes, t.date,
+               t.shared_with_manager, t.favorite,
+               c.name AS category,
+               COALESCE(GROUP_CONCAT(tg.name, ', '), '') AS tags
+        FROM tickets t
+        JOIN categories c ON c.id = t.category_id
+        LEFT JOIN ticket_tags tt ON tt.ticket_id = t.id
+        LEFT JOIN tags tg ON tg.id = tt.tag_id
+        WHERE {' AND '.join(where_parts)}
+        GROUP BY t.id
+        ORDER BY t.date DESC, t.id DESC
+        LIMIT 5
+        """,
+        params,
+    ).fetchall()
+
+    duplicates: list[dict[str, Any]] = []
+    for row in rows:
+        duplicates.append(
+            {
+                "id": row["id"],
+                "link": row["link"],
+                "description": row["description"],
+                "notes": row["notes"],
+                "date": row["date"],
+                "display_date": _human_readable_date(row["date"]),
+                "shared_with_manager": bool(row["shared_with_manager"]),
+                "favorite": bool(row["favorite"]),
+                "category": row["category"],
+                "tags": row["tags"],
+            }
+        )
+
+    return duplicates
+
+
 @app.route("/favicon.ico")
 def favicon() -> Response:
     return redirect(url_for("static", filename="favicon.ico"))
@@ -515,8 +575,43 @@ def add_ticket() -> Any:
         return redirect(url_for("index"))
 
     link, category_id, description, notes, date_value, shared_with_manager, favorite, tags = entry_fields
+    duplicate_action = request.form.get("duplicate_action", "").strip()
+    merge_target_id = request.form.get("merge_target_id", "").strip()
 
     db = get_db()
+
+    if duplicate_action != "continue":
+        potential_duplicates = _find_potential_duplicates(db, link, description, category_id)
+        if potential_duplicates and duplicate_action != "merge":
+            return redirect(url_for("index"))
+
+    if duplicate_action == "merge" and merge_target_id.isdigit():
+        target_id = int(merge_target_id)
+        target_ticket = db.execute(
+            "SELECT id FROM tickets WHERE id = ?",
+            (target_id,),
+        ).fetchone()
+        if target_ticket is None:
+            return redirect(url_for("index"))
+
+        db.execute(
+            """
+            UPDATE tickets
+            SET link = ?,
+                category_id = ?,
+                description = ?,
+                ai_analysis = ?,
+                date = ?,
+                shared_with_manager = ?,
+                favorite = ?
+            WHERE id = ?
+            """,
+            (link, category_id, description, notes, date_value, shared_with_manager, favorite, target_id),
+        )
+        _sync_ticket_tags(db, target_id, tags)
+        db.commit()
+        return redirect(url_for("index"))
+
     cursor = db.execute(
         """
         INSERT INTO tickets (link, category_id, description, ai_analysis, date, shared_with_manager, favorite)
@@ -527,6 +622,18 @@ def add_ticket() -> Any:
     _sync_ticket_tags(db, cursor.lastrowid, tags)
     db.commit()
     return redirect(url_for("index"))
+
+
+@app.route("/tickets/duplicates/check", methods=["POST"])
+def check_duplicates() -> Response:
+    entry_fields = _validated_entry_fields(request.form)
+    if entry_fields is None:
+        return jsonify({"success": False, "duplicates": [], "error": "Invalid ticket payload."}), 400
+
+    link, category_id, description, *_ = entry_fields
+    db = get_db()
+    duplicates = _find_potential_duplicates(db, link, description, category_id)
+    return jsonify({"success": True, "duplicates": duplicates})
 
 
 @app.route("/bookmarklet/new", methods=["GET", "POST"])
