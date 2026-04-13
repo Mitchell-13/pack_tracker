@@ -224,39 +224,6 @@
       line-height: 1.45;
       color: #dbeafe;
     }
-    .duplicate-layout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      padding: 1rem;
-      overflow: auto;
-    }
-    .duplicate-column {
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      border-radius: 10px;
-      padding: 0.75rem;
-      background: rgba(15, 23, 42, 0.4);
-    }
-    .duplicate-column h4 { margin: 0 0 0.5rem; }
-    .duplicate-list {
-      max-height: 280px;
-      overflow: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      margin-bottom: 0.75rem;
-    }
-    .duplicate-option {
-      text-align: left;
-      padding: 0.6rem;
-      border-radius: 8px;
-      border: 1px solid rgba(125, 211, 252, 0.28);
-      background: rgba(15, 23, 42, 0.72);
-      color: #dbeafe;
-      cursor: pointer;
-    }
-    .duplicate-option.active { border-color: var(--primary); background: rgba(14, 165, 233, 0.18); }
-    .duplicate-actions { display: flex; gap: 0.5rem; justify-content: flex-end; padding: 0 1rem 1rem; }
 
     .field-with-button { display: flex; gap: 0.5rem; align-items: center; }
     .field-with-button select { flex: 1; }
@@ -371,7 +338,7 @@
   <h1>PackTracker</h1>
 
   <div class="layout">
-    <form action="{{ url_for('add_ticket') }}" method="post" id="add-ticket-form">
+    <form action="{{ url_for('add_ticket') }}" method="post">
       <details class="add-ticket-panel">
         <summary>Add New Entry</summary>
       <label for="link">Link</label>
@@ -427,8 +394,6 @@
         Favorite
       </label>
 
-      <input type="hidden" name="duplicate_action" id="duplicate_action" value="" />
-      <input type="hidden" name="merge_target_id" id="merge_target_id" value="" />
       <button class="btn" type="submit">Save Entry</button>
       </details>
     </form>
@@ -653,38 +618,6 @@
     </div>
   </div>
 
-  <div id="duplicate-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="duplicate-modal-title">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="duplicate-modal-title">Potential duplicate detected</h3>
-        <button id="close-duplicate-modal" type="button">Close</button>
-      </div>
-      <div class="duplicate-layout">
-        <div class="duplicate-column">
-          <h4>Existing ticket</h4>
-          <div id="duplicate-list" class="duplicate-list"></div>
-          <div id="selected-duplicate-preview" class="helper-text"></div>
-        </div>
-        <div class="duplicate-column">
-          <h4>Merge details (editable)</h4>
-          <label for="merge_link">Link</label>
-          <input id="merge_link" type="url" />
-          <label for="merge_description">Description</label>
-          <textarea id="merge_description"></textarea>
-          <label for="merge_notes">Notes</label>
-          <textarea id="merge_notes" class="notes-input"></textarea>
-          <label for="merge_tags">Tags (comma separated)</label>
-          <input id="merge_tags" type="text" />
-        </div>
-      </div>
-      <div class="duplicate-actions">
-        <button id="duplicate-cancel" type="button" class="btn danger">Cancel new submission</button>
-        <button id="duplicate-continue" type="button" class="btn secondary">Continue separately</button>
-        <button id="duplicate-merge" type="button" class="btn">Merge with selected ticket</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     const notesModal = document.getElementById('notes-modal');
     const notesContent = document.getElementById('notes-content');
@@ -713,148 +646,6 @@
       if (event.key === 'Escape' && !notesModal.classList.contains('hidden')) {
         closeNotesModal();
       }
-    });
-
-    const addTicketForm = document.getElementById('add-ticket-form');
-    const duplicateActionInput = document.getElementById('duplicate_action');
-    const mergeTargetIdInput = document.getElementById('merge_target_id');
-    const duplicateModal = document.getElementById('duplicate-modal');
-    const duplicateList = document.getElementById('duplicate-list');
-    const duplicatePreview = document.getElementById('selected-duplicate-preview');
-    const closeDuplicateModalButton = document.getElementById('close-duplicate-modal');
-    const duplicateCancelButton = document.getElementById('duplicate-cancel');
-    const duplicateContinueButton = document.getElementById('duplicate-continue');
-    const duplicateMergeButton = document.getElementById('duplicate-merge');
-    const mergeLinkInput = document.getElementById('merge_link');
-    const mergeDescriptionInput = document.getElementById('merge_description');
-    const mergeNotesInput = document.getElementById('merge_notes');
-    const mergeTagsInput = document.getElementById('merge_tags');
-    let pendingSubmission = null;
-    let selectedDuplicateId = null;
-
-    function closeDuplicateModal(resetAction = true) {
-      duplicateModal.classList.add('hidden');
-      duplicateList.innerHTML = '';
-      duplicatePreview.textContent = '';
-      pendingSubmission = null;
-      selectedDuplicateId = null;
-      if (resetAction) {
-        if (duplicateActionInput) duplicateActionInput.value = '';
-        if (mergeTargetIdInput) mergeTargetIdInput.value = '';
-      }
-    }
-
-    function collectFormData(form) {
-      const formData = new FormData(form);
-      return {
-        link: String(formData.get('link') || '').trim(),
-        category_id: String(formData.get('category_id') || '').trim(),
-        description: String(formData.get('description') || '').trim(),
-        ai_analysis: String(formData.get('ai_analysis') || ''),
-        date: String(formData.get('date') || '').trim(),
-        tags: String(formData.get('tags') || ''),
-        shared_with_manager: formData.get('shared_with_manager') ? 'on' : '',
-        favorite: formData.get('favorite') ? 'on' : '',
-      };
-    }
-
-    function parseTagList(rawTags) {
-      return (rawTags || '').split(',').map((tag) => tag.trim()).filter((tag) => tag);
-    }
-
-    function buildMergedText(existingText, newText) {
-      const existing = (existingText || '').trim();
-      const incoming = (newText || '').trim();
-      if (!existing) return incoming;
-      if (!incoming) return existing;
-      if (existing.toLowerCase() === incoming.toLowerCase()) return existing;
-      return `${existing}\n\n---\n${incoming}`;
-    }
-
-    function renderDuplicateCandidates(duplicates, submission) {
-      duplicateList.innerHTML = '';
-      duplicates.forEach((ticket, index) => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'duplicate-option';
-        item.innerHTML = `#${ticket.id} • ${ticket.category}<br>${ticket.display_date}<br>${ticket.description}`;
-        item.addEventListener('click', () => {
-          selectedDuplicateId = ticket.id;
-          duplicateList.querySelectorAll('.duplicate-option').forEach((option) => option.classList.remove('active'));
-          item.classList.add('active');
-          duplicatePreview.textContent = `Selected ticket #${ticket.id}. Review and edit the merged fields before saving.`;
-          mergeLinkInput.value = submission.link || ticket.link || '';
-          mergeDescriptionInput.value = buildMergedText(ticket.description, submission.description);
-          mergeNotesInput.value = buildMergedText(ticket.notes, submission.ai_analysis);
-          const mergedTags = Array.from(new Set([...parseTagList(ticket.tags), ...parseTagList(submission.tags)]));
-          mergeTagsInput.value = mergedTags.join(', ');
-        });
-        duplicateList.appendChild(item);
-        if (index === 0) {
-          item.click();
-        }
-      });
-    }
-
-    if (addTicketForm) {
-      addTicketForm.addEventListener('submit', async (event) => {
-        if (duplicateActionInput.value === 'continue' || duplicateActionInput.value === 'merge') {
-          return;
-        }
-
-        event.preventDefault();
-        const submission = collectFormData(addTicketForm);
-        pendingSubmission = submission;
-
-        const payload = new URLSearchParams(submission);
-        const response = await fetch('/tickets/duplicates/check', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: payload,
-        });
-
-        if (!response.ok) {
-          addTicketForm.submit();
-          return;
-        }
-
-        const result = await response.json();
-        if (!result.success || !result.duplicates || !result.duplicates.length) {
-          duplicateActionInput.value = 'continue';
-          addTicketForm.requestSubmit();
-          return;
-        }
-
-        renderDuplicateCandidates(result.duplicates, submission);
-        duplicateModal.classList.remove('hidden');
-      });
-    }
-
-    closeDuplicateModalButton.addEventListener('click', closeDuplicateModal);
-    duplicateCancelButton.addEventListener('click', closeDuplicateModal);
-    duplicateContinueButton.addEventListener('click', () => {
-      duplicateActionInput.value = 'continue';
-      closeDuplicateModal(false);
-      addTicketForm.requestSubmit();
-    });
-    duplicateMergeButton.addEventListener('click', () => {
-      if (!selectedDuplicateId || !pendingSubmission) {
-        return;
-      }
-
-      mergeTargetIdInput.value = String(selectedDuplicateId);
-      duplicateActionInput.value = 'merge';
-      document.getElementById('link').value = mergeLinkInput.value.trim();
-      document.getElementById('description').value = mergeDescriptionInput.value;
-      document.getElementById('ai_analysis').value = mergeNotesInput.value;
-      document.getElementById('tags').value = mergeTagsInput.value.trim();
-
-      const tagsEditor = document.querySelector('[data-tag-editor][data-hidden-input-id="tags"]');
-      if (tagsEditor && typeof tagsEditor.setTags === 'function') {
-        tagsEditor.setTags(mergeTagsInput.value.trim());
-      }
-      closeDuplicateModal(false);
-      addTicketForm.requestSubmit();
     });
 
 
